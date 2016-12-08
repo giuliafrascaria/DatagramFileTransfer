@@ -3,5 +3,5 @@ project(DFT)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -o")
 
-set(SOURCE_FILES main.c)
+set(SOURCE_FILES client.c mainServer.c server.c)
 add_executable(DFT ${SOURCE_FILES})
