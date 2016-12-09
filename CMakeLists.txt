@@ -16,6 +16,7 @@ set(SOURCE_FILES2
 set(SOURCE_FILES3
         mainServer.c
         dataStructures.c
+        server.c
         dataStructures.h server.h)
 
 

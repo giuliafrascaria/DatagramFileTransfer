@@ -1,6 +1,7 @@
 ---------------------------------------------------------SERVER-------------------------------------------------------------------
 gcc -Wall -Wextra -O2 -o server mainServer.c dataStructures.c dataStructures.h
 
+gcc -Wall -Wextra -O2 -o server mainServer.c dataStructures.c server.c dataStructures.h server.h
 
 
 gcc -Wall -Wextra -g -O2 -pthread  -o server server.c serverThreadFunctions.c terminationAndRecovery.c timer.c selectiveRepeat.c dataStructures.h serverThreadFunctions.h -lm

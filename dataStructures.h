@@ -54,7 +54,7 @@ typedef struct handshake_t
 struct details
 {
     int windowDimension;
-    struct sockaddr addr;
+    struct sockaddr_in addr;
     int sockfd;
     socklen_t Size;
     int servSeq;

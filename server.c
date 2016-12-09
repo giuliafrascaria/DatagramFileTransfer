@@ -1,3 +1,11 @@
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include "server.h"
+
+#define WINDOWSIZE 256
+
+struct selectCell selectiveWnd[WINDOWSIZE];
+
 
 
 void listenFunction(int socketfd, struct details * details, handshake * message, ssize_t messageSize)

@@ -11,7 +11,7 @@
 #include "dataStructures.h"
 #include "server.h"
 
-#define WINDOWSIZE 256
+
 
 //------------------------------------PROTOTIPI---------------------------------
 
@@ -22,7 +22,7 @@
 //-------------------------------PROGRAMMA-------------------------------
 
 struct details client;
-struct selectCell selectiveWnd[WINDOWSIZE];
+
 
 
 int main()
@@ -31,6 +31,7 @@ int main()
 
     int mainSocket;
     struct sockaddr_in address; //specializzazione ipv4 della struct generica sockaddr
+    socklen_t slen = sizeof(address);
 
     //creazione della socket udp
     mainSocket = createSocket();
@@ -41,7 +42,7 @@ int main()
 
 
     //il server deve anche fare un bind della socket a una porta nota
-    bindSocket(mainSocket, (struct sockaddr *) &address, sizeof(struct sockaddr_in));
+    bindSocket(mainSocket, (struct sockaddr *) &address, slen);
 
 
     //il server inizia a servire le richieste in un ciclo continuo
@@ -50,7 +51,7 @@ int main()
 
         handshake SYN;
         size_t SYNlen = sizeof(handshake);
-        ssize_t msgLen = recvfrom(mainSocket, (char *) &SYN, SYNlen, 0, &(client.addr), &(client.Size));
+        ssize_t msgLen = recvfrom(mainSocket, (char *) &SYN, SYNlen, 0, (struct sockaddr *) &(client.addr), &slen);
         if(msgLen == -1)
         {
             perror("error in recvfrom");
