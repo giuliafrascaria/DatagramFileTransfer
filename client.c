@@ -1,24 +1,35 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <zconf.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000
+#define NANOSLEEP 10000
 
 
-int timerSize = TIMERSIZE, nanoSleep = NANOSLEEP;
+int timerSize = TIMERSIZE;
+int nanoSleep = NANOSLEEP;
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 
 
+
+pthread_t listenThread;
+pthread_t timerThread;
+
+void * clientSendFunction();
+void * clientTimerFunction();
+void * clientListenFunction();
+
+void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void clientSendFunction();
+
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-struct selectCell *selectiveWnd;
+struct selectCell selectiveWnd[WINDOWSIZE];
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -32,14 +43,20 @@ int main()
 }
 
 
-void clientSendFunction()
+void * clientSendFunction()
 {
+    initProcess();
+}
 
+void initProcess()
+{
     initWindow(WINDOWSIZE, selectiveWnd);
 
     // %%%%%%%%%%%%%%%%    thread       %%%%%%%%%%%%%%%%%
 
+    createThread(&listenThread, clientListenFunction, NULL);
 
+    createThread(&timerThread, clientTimerFunction, NULL);
 
     // %%%%%%%%%%%%%%%%    variabili    %%%%%%%%%%%%%%%%%
 
@@ -54,8 +71,6 @@ void clientSendFunction()
     socketfd = createSocket();
     printf("starting handshake procedure\n\n");
     startClientConnection( &senderServerAddress, serverLen, socketfd);
-
-
 }
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -90,3 +105,18 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
 }
 
+void * clientTimerFunction()
+{
+    printf("sono il timer\n\n");
+    timerFunction();
+    //timerFunction(WHEELDIM, &condTIM, &mtxTIM, &deletetimermtx, &currenttimemtx, &timecellmtx, NANOTIMER, wheel, &currentTimeSlot, &TIMGB, pipeRT[1], &dihtr, &mtx);
+    //return(EXIT_SUCCESS);
+}
+
+void * clientListenFunction()
+{
+    printf("sono il listener\n\n");
+    sleep(10);
+    //return (EXIT_SUCCESS);
+
+}

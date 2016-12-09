@@ -61,7 +61,7 @@ int createSocket()
 
 void initWindow(int dimension, struct selectCell * window)
 {
-    memset(window, 0, dimension*sizeof(struct selectCell));
+    memset(window, 0, dimension * sizeof(struct selectCell));
     int i;
     for(i = 0; i < dimension; i++)
     {
@@ -69,6 +69,8 @@ void initWindow(int dimension, struct selectCell * window)
         window[i].value = 0;
         window[i].wheelTimer = NULL;
     }
+
+    printf("inizializzazione terminata\n");
     //setta tutte le celle a 0, cioè cella vuota
     //1 sta per pacchetto spedito non ackato
     //2 sta per pacchetto spedito e ackato, credo si possa migliorare
@@ -153,29 +155,27 @@ void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct
 
 }
 
+//----------------------------------------------------------------------------------------------------------------THREAD
+
 void createThread(pthread_t * thread, void * function, void * arguments)
 {
-    if(pthread_create(thread,NULL, function, arguments) != 0)
+    if(pthread_create(thread, NULL, function, arguments) != 0)
     {
         perror("error in pthread_create");
     }
+
+    printf("thread creato\n");
 }
 
+//-----------------------------------------------------------------------------------------------------------------TIMER
 void * timerFunction()
 {
 
     struct timer currentTimer;
-    int elimina = 0;
+
 
     for(;;)
     {
-        //printf("dormo \n\n\n\n\n");
-        /*while (pthread_cond_wait(condTIM, mtxTIM) != 0)
-        {
-            perror("1: error on cond_wait");
-            sleep(1);
-        }
-        */
 
         initTimerWheel();
         currentTimeSlot = 0;
@@ -186,63 +186,22 @@ void * timerFunction()
         {
 
 
-            if (timerWheel[currentTimeSlot].nextTimer != NULL) {
+            if (timerWheel[currentTimeSlot].nextTimer != NULL)
+            {
                 printf("ho trovato un assert\n");
-                currentTimer = *timerWheel[currentTimeSlot].nextTimer;
-
-                if (currentTimer.isValid == 1) {
-
-                    printf("ho trovato il timer del pacchetto %d, è il primo della coda\n", currentTimer.seqNum);
-                    currentTimer.isValid = 0;
-
-                    /*if (write(pipeRT, (int *) &currentTimer.seqNum, sizeof(int)) == -1) {
-                        perror("error in write pipe");
-                    }*/
-
-                    //*dihtr = *dihtr +1;
-                    //printf("TIMER : valore di dihtr = %d\n", *dihtr);
-
-                }
-                elimina++;
-                while (currentTimer.nextTimer != NULL) {
-
-                    //rischio segfault
-                    currentTimer = *(currentTimer.nextTimer);
-
-                    if (currentTimer.isValid == 1) {
-                        //printf("timer %u\n", currentTimeSlot);
-                        //printf("ho trovato il timer del pacchetto\n");
-                        printf("ho trovato il timer del pacchetto %d \n", currentTimer.seqNum);
-                        currentTimer.isValid = 0;
-
-                        //printf("TIMER : scrivo nella pipe\n");
-                        /*if (write(pipeRT, (int *) &currentTimer.seqNum, sizeof(int)) == -1) {
-                            perror("error in write pipe");
-                        }*/
-
-
-                        //*dihtr = *dihtr +1;
-                        //printf("TIMER : valore di dihtr = %d\n", *dihtr);
-
-                    }
-                    elimina++;
-                }
-
             }
-
-            if (elimina != 0) {
-                //printf("---------------\nmetto a NULL la posizione  %d\n----------------\n", *currentTimeSlot);
-                timerWheel[currentTimeSlot].nextTimer = NULL;
-                elimina = 0;
-
+            else
+            {
+                printf("nulla\n");
             }
 
             currentTimeSlot = (currentTimeSlot + 1) % timerSize;
 
             usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
-        exit(EXIT_SUCCESS);
+
         }
 
+        exit(EXIT_SUCCESS);
         //printf("mi fermo alla posizione currentTimeSlot = %d \n", *currentTimeSlot);
     }
 }

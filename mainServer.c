@@ -25,9 +25,9 @@ struct details client;
 
 
 
-int main()
-{
+int main() {
 
+    //-----------------------------------------------------------------------------------------------init main server
 
     int mainSocket;
     struct sockaddr_in address; //specializzazione ipv4 della struct generica sockaddr
@@ -44,6 +44,7 @@ int main()
     //il server deve anche fare un bind della socket a una porta nota
     bindSocket(mainSocket, (struct sockaddr *) &address, slen);
 
+    //-----------------------------------------------------------------------------------------------main server loop
 
     //il server inizia a servire le richieste in un ciclo continuo
     for(;;)
@@ -56,7 +57,6 @@ int main()
         {
             perror("error in recvfrom");
         }
-
 
         //arriva un messaggio e salvo i dati del client nella struct
 
@@ -71,8 +71,6 @@ int main()
 
         if(processPid == 0)//child process
         { //
-
-
 
             printf("*----------------------------*\n un client vorrebbe connettersi\n*----------------------------*\n\n\n");
 
