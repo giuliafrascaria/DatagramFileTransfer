@@ -25,9 +25,9 @@ struct timer
 struct selectCell
 {
     int value;
-    //struct timer packetTimer;
+    struct timer packetTimer;
     int seqNum;
-    struct timer *wheelTimer;
+    struct timer * wheelTimer;
 };
 
 typedef struct datagram_t
@@ -72,7 +72,7 @@ struct headTimer
 
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
-void initWindow(int dimension, struct selectCell *window);
+void initWindow();
 
 void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
                 struct timer * packetTimer,
@@ -96,6 +96,7 @@ void createThread(pthread_t * thread, void * function, void * arguments);
 void * timerFunction();
 void initTimerWheel();
 void startTimer( struct timer * packetTimer, int packetN, int posInWheel);
+
 
 
 #endif //DATASTRUCTURES_H

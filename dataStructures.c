@@ -59,15 +59,15 @@ int createSocket()
 
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
-void initWindow(int dimension, struct selectCell * window)
+void initWindow()
 {
-    memset(window, 0, dimension * sizeof(struct selectCell));
+    memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell));
     int i;
-    for(i = 0; i < dimension; i++)
+    for(i = 0; i < windowSize; i++)
     {
-        window[i].seqNum = -1;
-        window[i].value = 0;
-        window[i].wheelTimer = NULL;
+        selectiveWnd[i].seqNum = -1;
+        selectiveWnd[i].value = 0;
+        selectiveWnd[i].wheelTimer = NULL;
     }
 
     printf("inizializzazione terminata\n");
@@ -84,7 +84,7 @@ void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
     if(retransmission == 0)
     {
         (selectiveWnd[packetN % windowDim]).value = 1;
-        //((details)->selectiveWnd)[packetN % (details)->windowDimension].packetTimer.seqNum = packetN;
+        ((selectiveWnd[packetN % windowDim]).packetTimer).seqNum = packetN;
         printf("updated selective repeat\n");
         startTimer(packetTimer, packetN, (slot+offset)%timerSize);
     }
@@ -207,26 +207,25 @@ void * timerFunction()
 
 void startTimer( struct timer * packetTimer, int packetN, int posInWheel)
 {
-    packetTimer->seqNum = packetN;
-    packetTimer->isValid = 1;
-    packetTimer->posInWheel = posInWheel;
+    packetTimer = malloc(sizeof(struct timer));
+
+    (selectiveWnd[(packetN)%(windowSize)].packetTimer).seqNum = packetN;
+    (selectiveWnd[(packetN)%(windowSize)].packetTimer).isValid = 1;
+    (selectiveWnd[(packetN)%(windowSize)].packetTimer).posInWheel = posInWheel;
+
     if(timerWheel[posInWheel].nextTimer != NULL)
     {
-        packetTimer->nextTimer = timerWheel[posInWheel].nextTimer;
+        (selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = timerWheel[posInWheel].nextTimer;
+
     }
     else
         (packetTimer->nextTimer = NULL);
-    timerWheel[posInWheel].nextTimer = packetTimer;
-    selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
+
+    printf("setting timer in wheel position %d\n", posInWheel);
+    (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
+    //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
 
-void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen){
-    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, SYNlen, 0, address, slen);
-    if(msgLen == -1)
-    {
-        perror("error in recvfrom");
-    }
-}
 
 
 void initTimerWheel()
@@ -237,4 +236,15 @@ void initTimerWheel()
         timerWheel[i].nextTimer = NULL;
     }
     printf("inizializzazione terminata\n\n");
+}
+
+//----------------------------------------------------------------------------------------------------------------
+
+void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen)
+{
+    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, SYNlen, 0, address, slen);
+    if(msgLen == -1)
+    {
+        perror("error in recvfrom");
+    }
 }
