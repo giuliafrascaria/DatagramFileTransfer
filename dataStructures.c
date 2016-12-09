@@ -216,9 +216,13 @@ void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr 
     }
 }
 
-void initTimerWheel(){
+
+void initTimerWheel()
+{
+    printf("inizializzo ruota\n\n");
     for(int i = 0; i < timerSize; i++)
     {
         timerWheel[i].nextTimer = NULL;
     }
+    printf("inizializzazione terminata\n\n");
 }

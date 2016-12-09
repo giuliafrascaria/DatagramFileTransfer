@@ -19,6 +19,7 @@ struct headTimer timerWheel[TIMERSIZE];
 pthread_t timerThread;
 pthread_t senderThread;
 
+void listenCycle();
 
 
 void listenFunction(int socketfd, struct details * details, handshake * message, ssize_t messageSize)
@@ -46,9 +47,22 @@ void listenFunction(int socketfd, struct details * details, handshake * message,
     }
     //startServerConnection(details, socketfd, message);
 
+    printf("finita la creazione dei thread\n");
+
+    listenCycle();
+
 }
 
 void * sendFunction()
 {
     printf("sono il sender\n");
+}
+
+void listenCycle()
+{
+    printf("inizio il ciclo di ascolto\n");
+    for(;;)
+    {
+
+    }
 }
