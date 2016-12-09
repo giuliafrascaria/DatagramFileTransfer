@@ -198,13 +198,21 @@ void * timerFunction()
 
             currentTimeSlot = (currentTimeSlot + 1) % timerSize;
 
-            sleep(10);
-            //usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
+            usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
 
         }
 
         exit(EXIT_SUCCESS);
         //printf("mi fermo alla posizione currentTimeSlot = %d \n", *currentTimeSlot);
+    }
+}
+
+
+void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen){
+    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, SYNlen, 0, address, slen);
+    if(msgLen == -1)
+    {
+        perror("error in recvfrom");
     }
 }
 

@@ -1,12 +1,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <zconf.h>
+#include <unistd.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 10000
+#define NANOSLEEP 100000
 
 
 int timerSize = TIMERSIZE;
@@ -19,7 +19,7 @@ pthread_t listenThread;
 pthread_t timerThread;
 
 void clientSendFunction();
-void clientListenFunction();
+void * clientListenFunction();
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -104,7 +104,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 }
 
 
-void clientListenFunction()
+void * clientListenFunction()
 {
     printf("sono il listener\n\n");
     sleep(10);

@@ -1,10 +1,11 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000
+#define NANOSLEEP 100000
 
 
 int timerSize = TIMERSIZE;
@@ -34,8 +35,15 @@ void listenFunction(int socketfd, struct details * details, handshake * message,
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));
 
-    createThread(&timerThread, timerFunction, NULL);
-    createThread(&senderThread, sendFunction, NULL);
+//    createThread(&timerThread, timerFunction, NULL);
+//    createThread(&senderThread, sendFunction, NULL);
+    if(pthread_create(&timerThread, NULL, (void *) timerFunction, NULL) != 0){
+        perror("error on pthred_create");
+    }
+
+    if(pthread_create(&senderThread, NULL, (void *) sendFunction, NULL) != 0){
+        perror("error on pthred_create");
+    }
     //startServerConnection(details, socketfd, message);
 
 }

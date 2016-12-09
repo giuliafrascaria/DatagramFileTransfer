@@ -52,12 +52,8 @@ int main() {
 
         handshake SYN;
         size_t SYNlen = sizeof(handshake);
-        ssize_t msgLen = recvfrom(mainSocket, (char *) &SYN, SYNlen, 0, (struct sockaddr *) &(client.addr), &slen);
-        if(msgLen == -1)
-        {
-            perror("error in recvfrom");
-        }
 
+        receiveMsg(mainSocket, &SYN, SYNlen, (struct sockaddr *) &(client.addr), &slen);
         //arriva un messaggio e salvo i dati del client nella struct
 
         //fork to allow child process to serve the client
@@ -77,13 +73,14 @@ int main() {
             listenFunction(mainSocket, &client, &SYN, SYNlen);
 
             printf("il figlio è pronto a servire il client\n");
-            exit(EXIT_SUCCESS);
+            //exit(EXIT_SUCCESS);
 
         }
         //if I am the parent process, I continue waiting for connections on this port
     }
     exit(EXIT_SUCCESS);
 }
+
 
 
 

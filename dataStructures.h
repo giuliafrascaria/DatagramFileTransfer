@@ -89,6 +89,8 @@ struct sockaddr_in createStruct(unsigned short portN);
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 //----------------------------------------------------------------------------------------------------------------------
 
+void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen);
+
 void createThread(pthread_t * thread, void * function, void * arguments);
 
 void * timerFunction();
