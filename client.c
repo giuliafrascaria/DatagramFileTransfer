@@ -3,15 +3,22 @@
 #include <stdlib.h>
 #include "dataStructures.h"
 
-
 #define WINDOWSIZE 256
+#define TIMERSIZE 2048
+#define NANOSLEEP 1000
+
+
+int timerSize = TIMERSIZE, nanoSleep = NANOSLEEP;
+volatile int currentTimeSlot;
+struct headTimer timerWheel[TIMERSIZE];
+
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void clientSendFunction();
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-struct selectCell selectiveWnd[WINDOWSIZE];
+struct selectCell *selectiveWnd;
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

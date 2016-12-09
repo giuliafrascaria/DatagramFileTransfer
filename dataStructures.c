@@ -14,7 +14,7 @@
 
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
-extern int windowSize, timerSize, nanoSleep;
+extern int  timerSize, nanoSleep;
 extern volatile int currentTimeSlot;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
