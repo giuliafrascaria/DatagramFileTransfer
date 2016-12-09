@@ -16,12 +16,12 @@ set(SOURCE_FILES2
 set(SOURCE_FILES3
         mainServer.c
         dataStructures.c
-        dataStructures.h)
+        dataStructures.h server.h)
 
 
 
 add_executable(client ${SOURCE_FILES2})
-add_executable(server ${SOURCE_FILES3})
+add_executable(server ${SOURCE_FILES3} server.h)
 
 
 target_link_libraries(client m)

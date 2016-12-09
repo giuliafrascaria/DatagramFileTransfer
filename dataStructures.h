@@ -54,7 +54,7 @@ typedef struct handshake_t
 struct details
 {
     int windowDimension;
-    struct sockaddr_in addr;
+    struct sockaddr addr;
     int sockfd;
     socklen_t Size;
     int servSeq;
@@ -73,8 +73,8 @@ struct details
 
 void initWindow(int dimension, struct selectCell *window);
 
-void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, struct details * details,
-                struct timer * packetTimer, volatile struct headTimer *wheel,
+void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
+                struct timer * packetTimer,
                 int slot, int offset, int retransmission);
 
 void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details);

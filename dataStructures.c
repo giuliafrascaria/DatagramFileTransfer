@@ -14,6 +14,7 @@
 extern struct selectCell selectiveWnd[];
 
 
+
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
@@ -72,22 +73,16 @@ void initWindow(int dimension, struct selectCell *window)
     //devo impostare sendBase e nextseqnum, non so bene quando
 }
 
-void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, struct details * details,
-                struct timer * packetTimer, volatile struct headTimer *wheel,
+void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
+                struct timer * packetTimer,
                 int slot, int offset, int retransmission)
 {
     if(retransmission == 0)
     {
-        if (pthread_mutex_lock(mtxARCVD) != 0)
-        {
-            perror("error in pthread_mutex_lock");
-        }
-        (selectiveWnd[packetN % (details)->windowDimension]).value = 1;
-        //((details)->selectiveWnd)[packetN % (details)->windowDimension].packetTimer.seqNum = packetN;
 
-        if (pthread_mutex_unlock(mtxARCVD) != 0) {
-            perror("error in pthread_mutex_unlock");
-        }
+        (selectiveWnd[packetN % windowDim]).value = 1;
+        //((details)->selectiveWnd)[packetN % (details)->windowDimension].packetTimer.seqNum = packetN;
+        printf("updated selective repeat\n");
     }
 
 

@@ -9,6 +9,7 @@
 #include <arpa/inet.h> //inet_pton(), htons()
 #include <unistd.h>//read()
 #include "dataStructures.h"
+#include "server.h"
 
 #define WINDOWSIZE 256
 
@@ -49,7 +50,7 @@ int main()
 
         handshake SYN;
         size_t SYNlen = sizeof(handshake);
-        ssize_t msgLen = recvfrom(mainSocket, (char *) &SYN, SYNlen, 0, (struct sockaddr *) &(client.addr), &(client.Size));
+        ssize_t msgLen = recvfrom(mainSocket, (char *) &SYN, SYNlen, 0, &(client.addr), &(client.Size));
         if(msgLen == -1)
         {
             perror("error in recvfrom");
@@ -70,10 +71,12 @@ int main()
         if(processPid == 0)//child process
         { //
 
-            initWindow(WINDOWSIZE, selectiveWnd);
+
 
             printf("*----------------------------*\n un client vorrebbe connettersi\n*----------------------------*\n\n\n");
-            //listenFunction(mainSocket, &client, &SYN, SYNlen);
+
+            listenFunction(mainSocket, &client, &SYN, SYNlen);
+
             printf("il figlio è pronto a servire il client\n");
             exit(EXIT_SUCCESS);
 

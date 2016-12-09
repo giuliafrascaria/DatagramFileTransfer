@@ -59,6 +59,14 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     ssize_t sentData;
     sentData = sendto(socketfd, (char *) &SYN, SYNsize, 0, (struct sockaddr* ) servAddr, servLen);
 
+    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE, NULL, 0, 0, 0);
+
+    int i;
+    for(i = 0; i < WINDOWSIZE; i++)
+    {
+        printf("[%d]", selectiveWnd[i]);
+    }
+
     if(sentData == -1)
     {
         perror("error in sending data\n");
