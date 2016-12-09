@@ -15,13 +15,11 @@ volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 
 
-
 pthread_t listenThread;
 pthread_t timerThread;
 
-void * clientSendFunction();
-void * clientTimerFunction();
-void * clientListenFunction();
+void clientSendFunction();
+void clientListenFunction();
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -43,7 +41,7 @@ int main()
 }
 
 
-void * clientSendFunction()
+void clientSendFunction()
 {
     initProcess();
 }
@@ -56,7 +54,7 @@ void initProcess()
 
     createThread(&listenThread, clientListenFunction, NULL);
 
-    createThread(&timerThread, clientTimerFunction, NULL);
+    createThread(&timerThread, timerFunction, NULL);
 
     // %%%%%%%%%%%%%%%%    variabili    %%%%%%%%%%%%%%%%%
 
@@ -105,15 +103,8 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
 }
 
-void * clientTimerFunction()
-{
-    printf("sono il timer\n\n");
-    timerFunction();
-    //timerFunction(WHEELDIM, &condTIM, &mtxTIM, &deletetimermtx, &currenttimemtx, &timecellmtx, NANOTIMER, wheel, &currentTimeSlot, &TIMGB, pipeRT[1], &dihtr, &mtx);
-    //return(EXIT_SUCCESS);
-}
 
-void * clientListenFunction()
+void clientListenFunction()
 {
     printf("sono il listener\n\n");
     sleep(10);

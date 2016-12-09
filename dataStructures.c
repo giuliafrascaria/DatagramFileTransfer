@@ -171,6 +171,7 @@ void createThread(pthread_t * thread, void * function, void * arguments)
 void * timerFunction()
 {
 
+    printf("sono il timer\n\n");
     struct timer currentTimer;
 
 
@@ -197,7 +198,8 @@ void * timerFunction()
 
             currentTimeSlot = (currentTimeSlot + 1) % timerSize;
 
-            usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
+            sleep(10);
+            //usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
 
         }
 
