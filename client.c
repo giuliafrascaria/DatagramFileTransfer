@@ -30,6 +30,10 @@ void clientSendFunction()
 
     initWindow(WINDOWSIZE, selectiveWnd);
 
+    // %%%%%%%%%%%%%%%%    thread       %%%%%%%%%%%%%%%%%
+
+
+
     // %%%%%%%%%%%%%%%%    variabili    %%%%%%%%%%%%%%%%%
 
     int socketfd;

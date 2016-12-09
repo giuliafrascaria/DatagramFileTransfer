@@ -25,12 +25,11 @@ struct sockaddr_in createStruct(unsigned short portN)
     socklen_t serverLen = sizeof(struct sockaddr_in);
 
     memset((void *) &address, 0, serverLen);//reset del contenuto
+
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
-    if(inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) <= 0)
-    {
-        exit(EXIT_FAILURE);
-    }
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
+
     return address;
 }
 
@@ -43,10 +42,11 @@ void bindSocket(int sockfd, struct sockaddr * address , socklen_t size)
     }
 }
 
+
 int createSocket()
 {
     int socketfd;
-    socketfd = socket(AF_INET, SOCK_DGRAM, 0);
+    socketfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if(socketfd == -1)
     {
         perror("error in socket creation\n");
@@ -57,7 +57,7 @@ int createSocket()
 
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
-void initWindow(int dimension, struct selectCell *window)
+void initWindow(int dimension, struct selectCell * window)
 {
     memset(window, 0, dimension*sizeof(struct selectCell));
     int i;
