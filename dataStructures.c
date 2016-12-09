@@ -14,7 +14,7 @@
 
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
-extern int  timerSize, nanoSleep;
+extern int  timerSize, nanoSleep, windowSize;
 extern volatile int currentTimeSlot;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
@@ -83,13 +83,11 @@ void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
 {
     if(retransmission == 0)
     {
-
         (selectiveWnd[packetN % windowDim]).value = 1;
         //((details)->selectiveWnd)[packetN % (details)->windowDimension].packetTimer.seqNum = packetN;
         printf("updated selective repeat\n");
+        startTimer(packetTimer, packetN, (slot+offset)%timerSize);
     }
-
-
 }
 
 
@@ -207,6 +205,20 @@ void * timerFunction()
     }
 }
 
+void startTimer( struct timer * packetTimer, int packetN, int posInWheel)
+{
+    packetTimer->seqNum = packetN;
+    packetTimer->isValid = 1;
+    packetTimer->posInWheel = posInWheel;
+    if(timerWheel[posInWheel].nextTimer != NULL)
+    {
+        packetTimer->nextTimer = timerWheel[posInWheel].nextTimer;
+    }
+    else
+        (packetTimer->nextTimer = NULL);
+    timerWheel[posInWheel].nextTimer = packetTimer;
+    selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
+}
 
 void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen){
     ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, SYNlen, 0, address, slen);

@@ -11,6 +11,7 @@
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
+int windowSize = WINDOWSIZE;
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 

@@ -95,5 +95,7 @@ void createThread(pthread_t * thread, void * function, void * arguments);
 
 void * timerFunction();
 void initTimerWheel();
+void startTimer( struct timer * packetTimer, int packetN, int posInWheel);
+
 
 #endif //DATASTRUCTURES_H
