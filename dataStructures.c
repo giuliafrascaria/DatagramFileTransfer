@@ -8,12 +8,14 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "dataStructures.h"
 
 
 extern struct selectCell selectiveWnd[];
-
-
+extern struct headTimer timerWheel[];
+extern int windowSize, timerSize, nanoSleep;
+extern volatile int currentTimeSlot;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -153,8 +155,101 @@ void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct
 
 void createThread(pthread_t * thread, void * function, void * arguments)
 {
-    if(pthread_create(thread,NULL, function, arguments) != 0){
+    if(pthread_create(thread,NULL, function, arguments) != 0)
+    {
         perror("error in pthread_create");
     }
 }
 
+void * timerFunction()
+{
+
+    struct timer currentTimer;
+    int elimina = 0;
+
+    for(;;)
+    {
+        //printf("dormo \n\n\n\n\n");
+        /*while (pthread_cond_wait(condTIM, mtxTIM) != 0)
+        {
+            perror("1: error on cond_wait");
+            sleep(1);
+        }
+        */
+
+        initTimerWheel();
+        currentTimeSlot = 0;
+
+
+        //while (*TIMGB == 1)
+        for(;;)
+        {
+
+
+            if (timerWheel[currentTimeSlot].nextTimer != NULL) {
+                printf("ho trovato un assert\n");
+                currentTimer = *timerWheel[currentTimeSlot].nextTimer;
+
+                if (currentTimer.isValid == 1) {
+
+                    printf("ho trovato il timer del pacchetto %d, è il primo della coda\n", currentTimer.seqNum);
+                    currentTimer.isValid = 0;
+
+                    /*if (write(pipeRT, (int *) &currentTimer.seqNum, sizeof(int)) == -1) {
+                        perror("error in write pipe");
+                    }*/
+
+                    //*dihtr = *dihtr +1;
+                    //printf("TIMER : valore di dihtr = %d\n", *dihtr);
+
+                }
+                elimina++;
+                while (currentTimer.nextTimer != NULL) {
+
+                    //rischio segfault
+                    currentTimer = *(currentTimer.nextTimer);
+
+                    if (currentTimer.isValid == 1) {
+                        //printf("timer %u\n", currentTimeSlot);
+                        //printf("ho trovato il timer del pacchetto\n");
+                        printf("ho trovato il timer del pacchetto %d \n", currentTimer.seqNum);
+                        currentTimer.isValid = 0;
+
+                        //printf("TIMER : scrivo nella pipe\n");
+                        /*if (write(pipeRT, (int *) &currentTimer.seqNum, sizeof(int)) == -1) {
+                            perror("error in write pipe");
+                        }*/
+
+
+                        //*dihtr = *dihtr +1;
+                        //printf("TIMER : valore di dihtr = %d\n", *dihtr);
+
+                    }
+                    elimina++;
+                }
+
+            }
+
+            if (elimina != 0) {
+                //printf("---------------\nmetto a NULL la posizione  %d\n----------------\n", *currentTimeSlot);
+                timerWheel[currentTimeSlot].nextTimer = NULL;
+                elimina = 0;
+
+            }
+
+            currentTimeSlot = (currentTimeSlot + 1) % timerSize;
+
+            usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
+        exit(EXIT_SUCCESS);
+        }
+
+        //printf("mi fermo alla posizione currentTimeSlot = %d \n", *currentTimeSlot);
+    }
+}
+
+void initTimerWheel(){
+    for(int i = 0; i < timerSize; i++)
+    {
+        timerWheel[i].nextTimer = NULL;
+    }
+}

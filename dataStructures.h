@@ -17,18 +17,17 @@ struct timer
     volatile int seqNum;
     //double lastRTT;
     //short int transmitN;
-    volatile struct timer * nextTimer;
+    struct timer * nextTimer;
     volatile int posInWheel;
     volatile short int isValid;
 };
-
 
 struct selectCell
 {
     int value;
     //struct timer packetTimer;
     int seqNum;
-    volatile struct timer *wheelTimer;
+    struct timer *wheelTimer;
 };
 
 typedef struct datagram_t
@@ -50,7 +49,6 @@ typedef struct handshake_t
     short int isFinal;
 } handshake;
 
-
 struct details
 {
     int windowDimension;
@@ -63,7 +61,10 @@ struct details
     //struct selectCell selectiveWnd[];
 };
 
-
+struct headTimer
+{
+    struct timer * nextTimer;
+};
 //----------------------------------------------------------------------------------------------------------------TIMER
 
 
@@ -89,5 +90,8 @@ void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 //----------------------------------------------------------------------------------------------------------------------
 
 void createThread(pthread_t * thread, void * function, void * arguments);
+
+void * timerFunction();
+void initTimerWheel();
 
 #endif //DATASTRUCTURES_H
