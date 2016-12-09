@@ -151,5 +151,10 @@ void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct
 
 }
 
-
+void createThread(pthread_t * thread, void * function, void * arguments)
+{
+    if(pthread_create(thread,NULL, function, arguments) != 0){
+        perror("error in pthread_create");
+    }
+}
 

@@ -1,6 +1,4 @@
 ---------------------------------------------------------SERVER-------------------------------------------------------------------
-gcc -Wall -Wextra -O2 -o server mainServer.c dataStructures.c dataStructures.h
-
 gcc -Wall -Wextra -O2 -o server mainServer.c dataStructures.c server.c dataStructures.h server.h
 
 

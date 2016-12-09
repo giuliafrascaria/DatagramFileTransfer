@@ -88,5 +88,6 @@ struct sockaddr_in createStruct(unsigned short portN);
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 //----------------------------------------------------------------------------------------------------------------------
 
+void createThread(pthread_t * thread, void * function, void * arguments);
 
 #endif //DATASTRUCTURES_H
