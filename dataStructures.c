@@ -2,25 +2,12 @@
 // Created by giogge on 09/12/16.
 //
 
-/*
-sender, un pacchetto deve partire, sendbase è il seqnum che mi ha comunicato il client
-    FATTO-controllo che il suo seqnum sia autorizzato a partire
-    FATTO-parte e aggiorno la finestra
-    FATTO-aspetto l'ack e lo segno nella finestra, eventualmente facendo avanzare sendbase
-
-receiver, ricevo un pacchetto, recvbase è il seqnum che ho comunicato al server
-    controllo che sia nella mia receiver window
-    FATTO-se è un nuovo pacchetto lo segno come ackato e mando l'ack
-    CIRCAFATTO-se è già ackato lo scarterò, ma l'ack va mandato lo stesso
-    CIRCAFATTO-se non è nell'ordine lo acko ma salvo il pacchetto in un buffer, out of order
-    FATTO-se ricevo e acko la recvbase la faccio avanzare
-    FATTO-se ricevo pacchetti below recvbase li scarto, se ricevo pacchetti oltre la finestra pure
-*/
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include "dataStructures.h"
 
 
@@ -29,7 +16,8 @@ extern struct selectCell selectiveWnd[];
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
-//-------------------------------------------------------------------------------------------------------CREATE STRUCT
+//---------------------------------------------------------------------------------------------------------CREATE SOCKET
+
 struct sockaddr_in createStruct(unsigned short portN)
 {
     struct sockaddr_in address;
@@ -45,7 +33,28 @@ struct sockaddr_in createStruct(unsigned short portN)
     return address;
 }
 
-//---------------------------------FUNZIONI DI INIZIALIZZAZIONE, SIA S CHE R --------------------
+void bindSocket(int sockfd, struct sockaddr * address , socklen_t size)
+{
+    if(bind(sockfd, address, size) == -1)
+    {
+        perror("error in bind\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int createSocket()
+{
+    int socketfd;
+    socketfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(socketfd == -1)
+    {
+        perror("error in socket creation\n");
+        exit(EXIT_FAILURE);
+    }
+    return socketfd;
+}
+
+//------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow(int dimension, struct selectCell *window)
 {
@@ -63,24 +72,89 @@ void initWindow(int dimension, struct selectCell *window)
     //devo impostare sendBase e nextseqnum, non so bene quando
 }
 
-void bindSocket(int sockfd, struct sockaddr * address , socklen_t size)
+void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, struct details * details,
+                struct timer * packetTimer, volatile struct headTimer *wheel,
+                int slot, int offset, int retransmission)
 {
-    if(bind(sockfd, address, size) == -1)
+    if(retransmission == 0)
     {
-        perror("error in bind\n");
-        exit(EXIT_FAILURE);
+        if (pthread_mutex_lock(mtxARCVD) != 0)
+        {
+            perror("error in pthread_mutex_lock");
+        }
+        (selectiveWnd[packetN % (details)->windowDimension]).value = 1;
+        //((details)->selectiveWnd)[packetN % (details)->windowDimension].packetTimer.seqNum = packetN;
+
+        if (pthread_mutex_unlock(mtxARCVD) != 0) {
+            perror("error in pthread_mutex_unlock");
+        }
     }
+
+
 }
 
 
-int createSocket()
+void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details)
 {
-    int socketfd;
-    socketfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if(socketfd == -1)
-    {
-        perror("error in socket creation\n");
-        exit(EXIT_FAILURE);
+
+    //printf("current  SB = %i, value SB = %i\n", (*details)->sendBase % (*details)->windowDimension, ((*details)->selectiveWnd)[((*details)->sendBase % (*details)->windowDimension)].value );
+    //printf("ackN value = %i\n\n\n", ackN);
+    //int i;
+
+    if (selectiveWnd[ackN % (details)->windowDimension].value != 0 && (selectiveWnd)[ackN % (details)->windowDimension].value != 2) {
+
+        /*NON COMMENTARE*/
+        int i;
+        printf("\n |");
+        for (i = 0; i < details->windowDimension; i++)
+        {
+            if (i == ackN % (details)->windowDimension)
+            {
+                printf(" (%d) |", (selectiveWnd)[i].value);
+            }
+            else {
+                printf(" %d |", (selectiveWnd)[i].value);
+            }
+        }
+        printf("\n");
+
+
+
+
+        if(pthread_mutex_lock(mtxARCVD)!= 0)
+        {
+            perror("error in mutex lock");
+        }
+        (selectiveWnd)[ackN % (details)->windowDimension].value = 2;
+
+
+        while ((selectiveWnd)[((details)->sendBase % (details)->windowDimension)].value == 2) {
+
+            (selectiveWnd)[((details)->sendBase % (details)->windowDimension)].value = 0;
+
+            (details)->sendBase = (details)->sendBase + 1;
+
+        }
+        if(pthread_mutex_unlock(mtxARCVD)!=0)
+        {
+            perror("error in mutex unlock");
+        }
+
     }
-    return socketfd;
+
+        //ack di paccheto mai ricevuto
+    else if (selectiveWnd[ackN % (details)->windowDimension].value == 0) {
+        if(((selectiveWnd)[ackN % (details)->windowDimension].wheelTimer) != NULL)
+        {
+            printf("stoppo il pacchetto ricevuto come duplicato\n");
+
+        }
+        else
+            printf("mi hai ackato qualcosa che non ho mai mandato : %d\n", ackN );
+
+    }
+
 }
+
+
+

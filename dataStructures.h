@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-
+//------------------------------------------------------------------------------------------------------STRUTTURE DATI
 struct timer
 {
     volatile int seqNum;
@@ -41,6 +41,7 @@ typedef struct datagram_t
     char content[512];
 } datagram;
 
+
 typedef struct handshake_t
 {
     int ack; //se vale 1 sto ackando il precedente
@@ -48,6 +49,7 @@ typedef struct handshake_t
     int sequenceNum;
     short int isFinal;
 } handshake;
+
 
 struct details
 {
@@ -58,29 +60,33 @@ struct details
     int servSeq;
     int mySeq;
     int volatile sendBase;
-    struct selectCell selectiveWnd[];
+    //struct selectCell selectiveWnd[];
 };
 
 
-/*------------------TIMER ------------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------------------------------------------TIMER
 
 
-/*------------------TERMINATION & RECOVERY -------------------------------------------------------------*/
+//------------------------------------------------------------------------------------------------TERMINATION & RECOVERY
 
-
-/*------------------SELECTIVE REPEAT -------------------------------------------------------------*/
-
-struct sockaddr_in createStruct(unsigned short portN);
-
-
+//------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow(int dimension, struct selectCell *window);
+
+void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, struct details * details,
+                struct timer * packetTimer, volatile struct headTimer *wheel,
+                int slot, int offset, int retransmission);
+
+void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details);
+
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 int createSocket();
 
+struct sockaddr_in createStruct(unsigned short portN);
+
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
-/*-------------------------------------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------------------------------------------------
 
 
-#endif //FTOUDP_DATASTRUCTURES_H
+#endif //DATASTRUCTURES_H

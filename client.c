@@ -9,14 +9,12 @@
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void clientSendFunction();
 
-//struct details sendServer;
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-//MAIN
 //------------------------------------------------------------------------------------------------------------------MAIN
 int main()
 {
@@ -45,6 +43,7 @@ void clientSendFunction()
     socketfd = createSocket();
     printf("starting handshake procedure\n\n");
     startClientConnection( &senderServerAddress, serverLen, socketfd);
+
 
 }
 
