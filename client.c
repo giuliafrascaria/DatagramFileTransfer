@@ -1,7 +1,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <zconf.h>
 #include "dataStructures.h"
 
 
@@ -11,36 +10,39 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 void clientSendFunction();
 
 //struct details sendServer;
+// %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 struct selectCell selectiveWnd[WINDOWSIZE];
+
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 //MAIN
 //------------------------------------------------------------------------------------------------------------------MAIN
 int main()
 {
 
-
-
     printf("connection is starting... \n\n\n");
-
     clientSendFunction();
-
     exit(EXIT_SUCCESS);
 }
+
 
 void clientSendFunction()
 {
 
     initWindow(WINDOWSIZE, selectiveWnd);
 
+    // %%%%%%%%%%%%%%%%    variabili    %%%%%%%%%%%%%%%%%
 
     int socketfd;
     struct sockaddr_in senderServerAddress;
-    senderServerAddress = createStruct(4242); //create struct with server port
-
-    socketfd = createSocket();
     socklen_t serverLen = sizeof(struct sockaddr_in);
 
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    senderServerAddress = createStruct(4242); //create struct with server port
+    socketfd = createSocket();
     printf("starting handshake procedure\n\n");
     startClientConnection( &senderServerAddress, serverLen, socketfd);
 
