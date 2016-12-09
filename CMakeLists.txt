@@ -3,5 +3,26 @@ project(DFT)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -o")
 
-set(SOURCE_FILES client.c mainServer.c server.c dataStructures.h)
-add_executable(DFT ${SOURCE_FILES} dataStructures.h)
+set(SOURCE_FILES client.c mainServer.c server.c dataStructures.h dataStructures.c)
+
+
+
+set(SOURCE_FILES2
+        client.c
+        dataStructures.c
+        dataStructures.h
+)
+
+set(SOURCE_FILES3
+        mainServer.c
+        dataStructures.c
+        dataStructures.h)
+
+
+
+add_executable(client ${SOURCE_FILES2})
+add_executable(server ${SOURCE_FILES3})
+
+
+target_link_libraries(client m)
+target_link_libraries(server m)

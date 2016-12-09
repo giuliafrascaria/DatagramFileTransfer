@@ -1,4 +1,5 @@
 ---------------------------------------------------------SERVER-------------------------------------------------------------------
+gcc -Wall -Wextra -O2 -o server mainServer.c dataStructures.c dataStructures.h
 
 
 
@@ -7,7 +8,7 @@ gcc -Wall -Wextra -g -O2 -pthread  -o server server.c serverThreadFunctions.c te
 
 ----------------------------------------------------------CLIENT-------------------------------------------------------------------
 
-
+gcc -Wall -Wextra -O2 -o client client.c dataStructures.c dataStructures.h
 
 gcc -Wall -Wextra -g -O2 -pthread  -o client client.c terminationAndRecovery.c timer.c selectiveRepeat.c dataStructures.h -lm
 
