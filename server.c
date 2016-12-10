@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <zconf.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
@@ -38,6 +39,8 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 
     printf("finita la creazione dei thread\n");
 
+    startServerConnection(details, socketfd, message);
+
     listenCycle();
 
 }
@@ -54,4 +57,42 @@ void listenCycle()
     {
 
     }
+}
+
+void startServerConnection(struct details * cl, int socketfd, handshake * message)
+{
+    //chiudo la socket pubblica nel processo figlio
+    if(close(socketfd) == -1)
+    {
+        perror("error in public socket close\n");
+        exit(EXIT_FAILURE);
+    }
+
+    //apro la socket dedicata al client su una porta casuale
+    int privateSocket;
+
+    privateSocket = createSocket();
+    socklen_t socklen = sizeof(struct sockaddr_in);
+
+    //collego una struct legata a una porta effimera, dedicata al client
+    struct sockaddr_in serverAddress;
+    //mi metto su una porta effimera, indicandola con sin_port = 0
+    serverAddress = createStruct(0); //create struct with ephemeral port
+    printf("ho creato la struct dedicata\n");
+
+    //per il client rimango in ascolto su questa socket
+    bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
+
+    handshake SYN_ACK;
+    handshake * SYN;
+    SYN = message;
+    srandom((unsigned int)getpid());
+    SYN_ACK.sequenceNum = rand() % 4096;
+    SYN_ACK.ack = SYN->sequenceNum + 1;
+
+    size_t SYNACKsize = sizeof(handshake);
+
+    //mando il datagramma ancora senza connettermi, che poi ha senso la connessione per il server??
+    sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
+
 }

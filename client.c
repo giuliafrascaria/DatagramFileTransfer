@@ -160,7 +160,8 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
 {
     handshake SYNACK;
     struct pipeMessage rtxN;
-    for(;;){
+    for(;;)
+    {
         if(checkPipe(&rtxN))
         {
             printf("devo ritrasmettere\n");
@@ -172,6 +173,7 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         }
         if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
         {
+            printf("ho ricevuto un syn ack\n\n");
             //--------------------------------------------INIT GLOBAL DETAILS
             return SYNACK.sequenceNum;
         }

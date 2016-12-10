@@ -9,5 +9,6 @@
 
 void listenFunction(int socketfd, struct details * details, handshake * message);
 void * sendFunction();
+void startServerConnection(struct details * cl, int socketfd, handshake * message);
 
 #endif //DFT_SERVER_H
