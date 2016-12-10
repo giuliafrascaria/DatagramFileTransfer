@@ -23,8 +23,8 @@ struct headTimer timerWheel[TIMERSIZE];
 void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void sendSYN_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 
 
 void initProcess();
@@ -34,6 +34,7 @@ int checkPipe(struct pipeMessage *rtxN);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
+struct details details;
 pthread_t listenThread, timerThread;
 struct selectCell selectiveWnd[WINDOWSIZE];
 
@@ -133,8 +134,8 @@ void initProcess()
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     sendSYN(servAddr, servLen, socketfd);
-    waitForSYNACK(servAddr, servLen, socketfd);
-    sendSYN_ACK(servAddr, servLen, socketfd);
+    int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);
+    send_ACK(servAddr, servLen, socketfd, rcvSequence);
 }
 
 
@@ -150,39 +151,42 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
+    details.servSeq = SYN.sequenceNum;
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
 }
 
-void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
-    handshake SYN;
+    handshake SYNACK;
     struct pipeMessage rtxN;
-    int i = 0;
-    while(i == 0){
+    for(;;){
         if(checkPipe(&rtxN))
         {
             printf("devo ritrasmettere\n");
             sendSYN(servAddr, servLen, socketfd);
         }
-        if((recvfrom(socketfd, (char *) &SYN, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) == -1) && (errno != EAGAIN))
+        if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) == -1) && (errno != EAGAIN))
         {
             perror("error in socket read");
-            //FAI COSE
         }
-        if((recvfrom(socketfd, (char *) &SYN, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
+        if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
         {
-            i++;
+            //--------------------------------------------INIT GLOBAL DETAILS
+            return SYNACK.sequenceNum;
         }
     }
 }
-void sendSYN_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+
+void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
-    handshake SYNACK;
-    //riempimento synack
-    SYNACK.sequenceNum = rand() % 4096;
-    sendACK(socketfd, &SYNACK, servAddr, servLen);
-    sentPacket(SYNACK.sequenceNum, 0);
+    handshake ACK;
+    ACK.ack = synackSN + 1;
+    ACK.sequenceNum = details.servSeq + 1;
+    ACK.windowsize = windowSize;
+
+    sendACK(socketfd, &ACK, servAddr, servLen);
+    sentPacket(ACK.sequenceNum, 0);
 }
 
 
