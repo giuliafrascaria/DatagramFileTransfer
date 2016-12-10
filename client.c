@@ -78,20 +78,14 @@ void initProcess()
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
-
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
-
     size_t SYNsize = sizeof(handshake);
 
     //mando il primo datagramma senza connettermi
     ssize_t sentData;
     sentData = sendto(socketfd, (char *) &SYN, SYNsize, 0, (struct sockaddr* ) servAddr, servLen);
-
-    //struct timer * packetTimer = malloc(sizeof(struct timer));
-
-    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE,  0);
-
+    sentPacket(SYN.sequenceNum, 0);
     int i;
     for(i = 0; i < WINDOWSIZE; i++)
     {
@@ -107,7 +101,6 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     {
         printf("mandato il primo messaggio\n");
     }
-
 }
 
 

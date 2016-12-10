@@ -74,9 +74,9 @@ struct headTimer
 
 void initWindow();
 
-void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim, int retransmission);
+void sentPacket(int packetN, int retransmission);
 
-void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details);
+void ackSentPacket(int ackN, int currentSlot, struct details *details);
 
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
@@ -98,6 +98,9 @@ int getWheelPosition();
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
                            int firstPacket, char ** FN);
+void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
+                           int firstPacket, char ** FN);
+
 
 
 #endif //DATASTRUCTURES_H
