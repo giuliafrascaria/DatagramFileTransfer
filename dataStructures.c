@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "dataStructures.h"
 
 
@@ -86,7 +87,7 @@ void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
         (selectiveWnd[packetN % windowDim]).value = 1;
         ((selectiveWnd[packetN % windowDim]).packetTimer).seqNum = packetN;
         printf("updated selective repeat\n");
-        startTimer(packetTimer, packetN, (slot+offset)%timerSize);
+        startTimer(packetN, (slot+offset)%timerSize);
     }
 }
 
@@ -205,9 +206,8 @@ void * timerFunction()
     }
 }
 
-void startTimer( struct timer * packetTimer, int packetN, int posInWheel)
+void startTimer( int packetN, int posInWheel)
 {
-    packetTimer = malloc(sizeof(struct timer));
 
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).seqNum = packetN;
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).isValid = 1;
@@ -219,7 +219,7 @@ void startTimer( struct timer * packetTimer, int packetN, int posInWheel)
 
     }
     else
-        (packetTimer->nextTimer = NULL);
+        ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
     printf("setting timer in wheel position %d\n", posInWheel);
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
@@ -248,3 +248,72 @@ void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr 
         perror("error in recvfrom");
     }
 }
+
+/*
+void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
+                           int firstPacket, int currentTimeSlot, char ** FN)
+{
+
+
+    //printf("RETRANSMISSION SERVER ACTIVATED\n");
+    int sequenceNumber, actualOffset, offset, slot, fd;
+    ssize_t readByte;
+
+
+    datagram sndPacket;
+
+
+    while (read(pipeRT, &sequenceNumber, sizeof(int)) == -1) {
+        perror("1: error in read pipe");
+        sleep(1);
+    }
+    sndPacket.seqNum = sequenceNumber;
+    sndPacket.opID = packet->opID;
+    sndPacket.isFinal = 0;
+    sndPacket.command = packet->command;
+
+    while (fd == -1) {
+        perror("1: error on open file, retransmission");
+        sleep(1);
+        fd = open(*FN, O_RDONLY);
+    }
+    while (lseek(fd, (sequenceNumber - firstPacket) * 512, SEEK_SET) == -1) {
+        perror("1: lseek error");
+        sleep(1);
+    }
+    readByte = read(fd, sndPacket.content, 512);
+    while (readByte == -1) {
+        perror("1: error in read");
+        readByte = read(fd, sndPacket.content, 512);
+    }
+    if (readByte < 512 && readByte >= 0) {
+        sndPacket.isFinal = 1;
+        printf("sto ritrasmettendo il pacchetto finale\n");
+    }
+
+    actualOffset = (int) (currentRTT->previousEstimate / 1000) / 500;
+    offset = MAX(8, actualOffset);
+
+    slot = currentTimeSlot;
+    printf("RETRANSMISSION : sentPacket\n");
+
+    startTimer(sequenceNumber,  (slot+offset)%2048);
+
+    printf("RETRANSMISSION : ritrasmetto pacchetto con numero di sequenza %d\n", sndPacket.seqNum);
+
+    if (write(details->sockfd, (char *) &sndPacket, sizeof(datagram)) == -1) {
+        perror("datagram send error");
+    }
+
+
+    printf("RETRANSMISSION : ritrasmissione avvenuta\n");
+
+    //----------------------------------
+
+
+    if (close(fd) == -1) {
+        perror("0: error on close, retransmission");
+    }
+
+}
+*/

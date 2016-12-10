@@ -54,7 +54,7 @@ void clientSendFunction()
 
 void initProcess()
 {
-    initWindow(WINDOWSIZE, selectiveWnd);
+    initWindow();
 
     // %%%%%%%%%%%%%%%%    thread       %%%%%%%%%%%%%%%%%
 

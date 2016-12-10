@@ -25,7 +25,7 @@ void listenCycle();
 
 void listenFunction(int socketfd, struct details * details, handshake * message, ssize_t messageSize)
 {
-    initWindow(WINDOWSIZE, selectiveWnd);
+    initWindow();
 
     if(messageSize != sizeof(handshake))
     {
