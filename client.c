@@ -25,6 +25,7 @@ void * clientListenFunction();
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+int checkPipe(struct pipeMessage *rtxN);
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,24 +66,33 @@ void clientSendFunction()
 
     for(;;)
     {
-        if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == -1)
+        if(checkPipe(&rtxN))
         {
-            if(errno != EAGAIN)
-            {
-                perror("error in pipe read");
-            }
+            printf("ho trovato un messaggio in pipe\n\n");
         }
-        else if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == 0)
+    }
+}
+
+int checkPipe(struct pipeMessage *rtxN)
+{
+    if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1)
+    {
+        if(errno != EAGAIN)
         {
-            printf("pipe non bloccante\n");
-            memset(&rtxN, 0, sizeof(struct pipeMessage));
-            usleep(1000);
+            perror("error in pipe read");
+            return -1;
         }
         else
         {
-            printf("\n\nho trovato un rtxN\n\n");
-            memset(&rtxN, 0, sizeof(struct pipeMessage));
+            return 0;
         }
+
+    }
+    else
+    {
+        printf("\n\nho trovato un rtxN\n\n");
+        memset(rtxN, 0, sizeof(struct pipeMessage));
+        return 1;
     }
 }
 
