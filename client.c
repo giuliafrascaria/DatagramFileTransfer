@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
@@ -51,21 +52,31 @@ void clientSendFunction()
         perror("error in pipe open");
     }
 
+    if (fcntl(pipeFd[0], F_SETFL, O_NONBLOCK) == -1)
+    {
+        perror("error in fcntl");
+    }
+
     initProcess();
 
     struct pipeMessage rtxN;
     memset(&rtxN, 0, sizeof(struct pipeMessage));
 
+
     for(;;)
     {
         if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == -1)
         {
-            perror("error on pipe read");
+            perror("error in pipe read");
+        }
+        else if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == 0)
+        {
+            printf("pipe non bloccante\n");
+            usleep(1000);
         }
         else
         {
-            printf("ho trovato un pipeMessage con numero di seq %d\n", rtxN.seqNum);
-            memset(&rtxN, 0, sizeof(struct pipeMessage));
+            printf("\n\nho trovato un rtxN\n\n");
         }
     }
 }

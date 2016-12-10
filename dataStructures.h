@@ -75,6 +75,7 @@ void initTimerWheel();
 void startTimer(int packetN, int posInWheel);
 int getWheelPosition();
 void clockTick();
+
 //------------------------------------------------------------------------------------------------TERMINATION & RECOVERY
 
 
@@ -92,6 +93,7 @@ void initWindow();
 void sentPacket(int packetN, int retransmission);
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
+
 int createSocket();
 
 struct sockaddr_in createStruct(unsigned short portN);
@@ -99,6 +101,7 @@ struct sockaddr_in createStruct(unsigned short portN);
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 
 //---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
+
 void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
