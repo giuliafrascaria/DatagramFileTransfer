@@ -18,6 +18,8 @@ extern struct headTimer timerWheel[];
 extern int  timerSize, nanoSleep, windowSize;
 extern volatile int currentTimeSlot;
 
+int offset = 3;
+
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
@@ -79,18 +81,26 @@ void initWindow()
 }
 
 void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
-                struct timer * packetTimer,
-                int slot, int offset, int retransmission)
+                struct timer * packetTimer, int retransmission)
 {
     if(retransmission == 0)
     {
         (selectiveWnd[packetN % windowDim]).value = 1;
         ((selectiveWnd[packetN % windowDim]).packetTimer).seqNum = packetN;
         printf("updated selective repeat\n");
-        startTimer(packetN, (slot+offset)%timerSize);
+
+        int pos = getWheelPosition();
+        startTimer(packetN, pos);
     }
 }
 
+
+int getWheelPosition()
+{
+    int pos = (currentTimeSlot + offset)%timerSize;
+    printf("timer will be set in position %d\n\n", pos);
+    return(pos);
+}
 
 void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details)
 {

@@ -91,7 +91,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
     //struct timer * packetTimer = malloc(sizeof(struct timer));
 
-    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE, NULL, 0, 0, 0);
+    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE, NULL, 0);
 
     int i;
     for(i = 0; i < WINDOWSIZE; i++)

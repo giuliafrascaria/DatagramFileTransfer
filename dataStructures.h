@@ -75,8 +75,7 @@ struct headTimer
 void initWindow();
 
 void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
-                struct timer * packetTimer,
-                int slot, int offset, int retransmission);
+                struct timer * packetTimer, int retransmission);
 
 void ackSentPacket(pthread_mutex_t * mtxARCVD, int ackN, int currentSlot, struct details *details);
 
@@ -96,6 +95,7 @@ void createThread(pthread_t * thread, void * function, void * arguments);
 void * timerFunction();
 void initTimerWheel();
 void startTimer(int packetN, int posInWheel);
+int getWheelPosition();
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
                            int firstPacket, int currentTimeSlot,char ** FN);
