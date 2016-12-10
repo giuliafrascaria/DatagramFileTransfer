@@ -22,6 +22,10 @@ struct headTimer timerWheel[TIMERSIZE];
 
 void clientSendFunction();
 void * clientListenFunction();
+void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+void sendSYN_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -124,7 +128,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 {
     sendSYN(servAddr, servLen, socketfd);
     waitForSYNACK(servAddr, servLen, socketfd);
-    sendSYNACK(servAddr, servLen, socketfd);
+    sendSYN_ACK(servAddr, servLen, socketfd);
 }
 
 
@@ -140,7 +144,6 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
-    //mando il primo datagramma senza connettermi
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
 }
@@ -162,12 +165,11 @@ void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketf
         }
     }
 }
-sendSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+void sendSYN_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYNACK;
     //riempimento synack
     SYNACK.sequenceNum = rand() % 4096;
-    //mando il primo datagramma senza connettermi
     sendACK(socketfd, &SYNACK, servAddr, servLen);
     sentPacket(SYNACK.sequenceNum, 0);
 }
