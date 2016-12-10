@@ -8,7 +8,7 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 100000
+#define NANOSLEEP 1000000
 
 
 int timerSize = TIMERSIZE;
@@ -24,7 +24,7 @@ void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
+void send_ACK(socklen_t servLen, int socketfd, int synackSN);
 
 
 void initProcess();
@@ -135,7 +135,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 {
     sendSYN(servAddr, servLen, socketfd);
     int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);
-    send_ACK(servAddr, servLen, socketfd, rcvSequence);
+    send_ACK(servLen, socketfd, rcvSequence);
 }
 
 
@@ -154,6 +154,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     details.servSeq = SYN.sequenceNum;
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
+    printf("syn inviato\n");
 }
 
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -175,20 +176,23 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         {
             printf("ho ricevuto un syn ack\n\n");
             //--------------------------------------------INIT GLOBAL DETAILS
+            details.addr = *servAddr;
+            printf("synack ricevuto\n");
             return SYNACK.sequenceNum;
         }
     }
 }
 
-void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
+void send_ACK(socklen_t servLen, int socketfd, int synackSN)
 {
     handshake ACK;
     ACK.ack = synackSN + 1;
     ACK.sequenceNum = details.servSeq + 1;
     ACK.windowsize = windowSize;
 
-    sendACK(socketfd, &ACK, servAddr, servLen);
+    sendACK(socketfd, &ACK, &(details.addr), servLen);
     sentPacket(ACK.sequenceNum, 0);
+    printf("pacchetto inviato\n");
 }
 
 

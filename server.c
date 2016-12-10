@@ -1,7 +1,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <zconf.h>
+#include <unistd.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
@@ -90,9 +90,8 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     SYN_ACK.sequenceNum = rand() % 4096;
     SYN_ACK.ack = SYN->sequenceNum + 1;
 
-    size_t SYNACKsize = sizeof(handshake);
-
     //mando il datagramma ancora senza connettermi, che poi ha senso la connessione per il server??
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
+    printf("ho mandato l'ack\n\n\n");
 
 }
