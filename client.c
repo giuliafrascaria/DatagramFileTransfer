@@ -67,16 +67,21 @@ void clientSendFunction()
     {
         if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == -1)
         {
-            perror("error in pipe read");
+            if(errno != EAGAIN)
+            {
+                perror("error in pipe read");
+            }
         }
         else if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == 0)
         {
             printf("pipe non bloccante\n");
+            memset(&rtxN, 0, sizeof(struct pipeMessage));
             usleep(1000);
         }
         else
         {
             printf("\n\nho trovato un rtxN\n\n");
+            memset(&rtxN, 0, sizeof(struct pipeMessage));
         }
     }
 }
