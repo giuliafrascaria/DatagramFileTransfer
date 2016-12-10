@@ -217,14 +217,7 @@ void initTimerWheel()
 
 //----------------------------------------------------------------------------------------------------------------
 
-void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen)
-{
-    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, SYNlen, 0, address, slen);
-    if(msgLen == -1)
-    {
-        perror("error in recvfrom");
-    }
-}
+
 
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
@@ -332,13 +325,38 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
         }
         sentPacket(sndPacket.seqNum, 1);
 
-        if (send(details->sockfd, (char *) &sndPacket, sizeof(datagram), 0) == -1) {
-            perror("datagram send error");
-        }
+        sendDatagram(details, &sndPacket);
 
         if (close(fd) == -1) {
             perror("0: error on close, retransmission");
         }
 
+    }
+}
+
+void sendDatagram(struct details * details, struct datagram_t * sndPacket)
+{
+    if (send(details->sockfd, (char *) sndPacket, sizeof(datagram), 0) == -1) {
+        perror("datagram send error");
+    }
+}
+
+void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
+{
+    ssize_t sentData;
+    sentData = sendto(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr* ) servAddr, servLen);
+    if(sentData == -1)
+    {
+        perror("error in sending data\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, socklen_t *slen)
+{
+    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, sizeof(handshake), 0, address, slen);
+    if(msgLen == -1)
+    {
+        perror("error in recvfrom");
     }
 }

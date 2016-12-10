@@ -24,16 +24,9 @@ pthread_t senderThread;
 void listenCycle();
 
 
-void listenFunction(int socketfd, struct details * details, handshake * message, ssize_t messageSize)
+void listenFunction(int socketfd, struct details * details, handshake * message)
 {
     initWindow();
-
-    if(messageSize != sizeof(handshake))
-    {
-        perror("wrong connection start\n");
-        exit(EXIT_FAILURE);
-
-    }
 
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));

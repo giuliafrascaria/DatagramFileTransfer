@@ -36,10 +36,8 @@ int main() {
     //creazione della socket udp
     mainSocket = createSocket();
 
-
     //settaggio dei valori della struct
     address = createStruct(4242); //create main socket on well known port
-
 
     //il server deve anche fare un bind della socket a una porta nota
     bindSocket(mainSocket, (struct sockaddr *) &address, slen);
@@ -51,14 +49,11 @@ int main() {
     {
 
         handshake SYN;
-        size_t SYNlen = sizeof(handshake);
-
-        receiveMsg(mainSocket, &SYN, SYNlen, (struct sockaddr *) &(client.addr), &slen);
+        receiveACK(mainSocket, &SYN, (struct sockaddr *) &(client.addr), &slen);
         //arriva un messaggio e salvo i dati del client nella struct
 
         //fork to allow child process to serve the client
-        pid_t processPid;
-        processPid = fork();
+        pid_t processPid = fork();
         if(processPid == -1)
         {
             perror("error in fork\n");
@@ -66,15 +61,10 @@ int main() {
         }
 
         if(processPid == 0)//child process
-        { //
-
+        {
             printf("*----------------------------*\n un client vorrebbe connettersi\n*----------------------------*\n\n\n");
-
-            listenFunction(mainSocket, &client, &SYN, SYNlen);
-
+            listenFunction(mainSocket, &client, &SYN);
             printf("il figlio è pronto a servire il client\n");
-            //exit(EXIT_SUCCESS);
-
         }
         //if I am the parent process, I continue waiting for connections on this port
     }

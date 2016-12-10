@@ -99,26 +99,13 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 {
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
-    size_t SYNsize = sizeof(handshake);
-
     //mando il primo datagramma senza connettermi
-    ssize_t sentData;
-    sentData = sendto(socketfd, (char *) &SYN, SYNsize, 0, (struct sockaddr* ) servAddr, servLen);
+    sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
     int i;
     for(i = 0; i < WINDOWSIZE; i++)
     {
         printf("[%d]", selectiveWnd[i].value);
-    }
-
-    if(sentData == -1)
-    {
-        perror("error in sending data\n");
-        exit(EXIT_FAILURE);
-    }
-    else
-    {
-        printf("mandato il primo messaggio\n");
     }
 }
 
@@ -130,3 +117,5 @@ void * clientListenFunction()
     //return (EXIT_SUCCESS);
 
 }
+
+

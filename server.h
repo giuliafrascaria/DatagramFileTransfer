@@ -7,7 +7,7 @@
 
 #include "dataStructures.h"
 
-void listenFunction(int socketfd, struct details * details, handshake * message, ssize_t messageSize);
+void listenFunction(int socketfd, struct details * details, handshake * message);
 void * sendFunction();
 
 #endif //DFT_SERVER_H

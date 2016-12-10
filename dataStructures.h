@@ -91,7 +91,6 @@ struct sockaddr_in createStruct(unsigned short portN);
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 //----------------------------------------------------------------------------------------------------------------------
 
-void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr * address, socklen_t *slen);
 
 void createThread(pthread_t * thread, void * function, void * arguments);
 
@@ -106,6 +105,11 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
 void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
                            int firstPacket, char ** FN);
 
+void sendDatagram(struct details * details, struct datagram_t * sndPacket);
+
+void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
+
+void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, socklen_t *slen);
 
 
 #endif //DATASTRUCTURES_H
