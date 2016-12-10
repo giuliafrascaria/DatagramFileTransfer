@@ -38,7 +38,6 @@ typedef struct datagram_t
     char content[512];
 } datagram;
 
-
 typedef struct handshake_t
 {
     int ack; //se vale 1 sto ackando il precedente
@@ -71,17 +70,26 @@ struct pipeMessage
 };
 //----------------------------------------------------------------------------------------------------------------TIMER
 
-
+void * timerFunction();
+void initTimerWheel();
+void startTimer(int packetN, int posInWheel);
+int getWheelPosition();
+void clockTick();
 //------------------------------------------------------------------------------------------------TERMINATION & RECOVERY
 
+
+
+//--------------------------------------------------------------------------------------------------------RETRANSMISSION
+void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
+                           int firstPacket, char * FN);
+
+void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
+                           int firstPacket, char * FN);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow();
 
 void sentPacket(int packetN, int retransmission);
-
-
-
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 int createSocket();
@@ -89,27 +97,18 @@ int createSocket();
 struct sockaddr_in createStruct(unsigned short portN);
 
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
-//----------------------------------------------------------------------------------------------------------------------
 
-
-void createThread(pthread_t * thread, void * function, void * arguments);
-
-void * timerFunction();
-void initTimerWheel();
-void startTimer(int packetN, int posInWheel);
-int getWheelPosition();
-void clockTick();
-
-void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char ** FN);
-void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char ** FN);
-
+//---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
 void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 
 void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, socklen_t *slen);
 
+void createThread(pthread_t * thread, void * function, void * arguments);
+
+int openFile(char * fileName);
+
+//----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

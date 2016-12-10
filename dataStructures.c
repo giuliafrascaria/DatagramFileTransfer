@@ -159,13 +159,11 @@ void * timerFunction()
                 printf("cella vuota\n");
             }
 
-            //scorro nella ruota
             clockTick();
-            usleep((useconds_t) nanoSleep); //sleep di mezzo millisecondo
+            usleep((useconds_t) nanoSleep);
 
         }
         exit(EXIT_SUCCESS);
-        //printf("mi fermo alla posizione currentTimeSlot = %d \n", *currentTimeSlot);
     }
 }
 
@@ -221,7 +219,7 @@ void initTimerWheel()
 
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char ** FN)
+                           int firstPacket, char * FN)
 {
     int sequenceNumber,fd;
     ssize_t readByte;
@@ -237,11 +235,11 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
     sndPacket.isFinal = 0;
     sndPacket.command = packet->command;
 
-    fd = open(*FN, O_RDONLY);
+    fd = open(FN, O_RDONLY);
     while (fd == -1) {
         perror("1: error on open file, retransmission");
         sleep(1);
-        fd = open(*FN, O_RDONLY);
+        fd = open(FN, O_RDONLY);
     }
     while (lseek(fd, (sequenceNumber - firstPacket) * 512, SEEK_SET) == -1) {
         perror("1: lseek error");
@@ -269,7 +267,7 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
 }
 
 void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char ** FN)
+                           int firstPacket, char * FN)
 {
 
 
@@ -285,18 +283,10 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
     packetTimer->seqNum = sequenceNumber;
     if (packet->command == 0 || packet->command == 2 || (packet->command == 1 && sequenceNumber == firstPacket))
     {
-        printf("faccio lo start del timer\n");
-        if((packetTimer = malloc(sizeof(struct timer)))==NULL)
-        {
-            perror("error in malloc");
-        }
         sentPacket(sndPacket.seqNum, 1);
 
-
         printf("mando il paccetto ritrasmesso\n");
-        if (send(details->sockfd, (char *) &packet, sizeof(datagram), 0) == -1) {
-            perror("datagram send error");
-        }
+        sendDatagram(details, packet);
 
     } else    //packet.command == 1 && firstpacket != 0
     {
@@ -305,12 +295,8 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
         sndPacket.opID = packet->opID;
         printf("RETRANSMISSION : ritrasmetto pacchetto con numero di sequenza %d\n", sndPacket.seqNum);
 
-        fd = open(*FN, O_RDONLY);
-        while (fd == -1) {
-            perror("1: error on open file, retransmission");
-            sleep(1);
-            fd = open(*FN, O_RDONLY);
-        }
+        fd = openFile(FN);
+
         while (lseek(fd, (sequenceNumber - firstPacket) * 512, SEEK_SET) == -1) {
             perror("1: lseek error");
             sleep(1);
@@ -359,4 +345,15 @@ void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, sock
     {
         perror("error in recvfrom");
     }
+}
+
+int openFile(char * fileName)
+{
+    int fd = open(fileName, O_RDONLY);
+    while (fd == -1) {
+        perror("1: error on open file, retransmission");
+        sleep(1);
+        fd = open(fileName, O_RDONLY);
+    }
+    return fd;
 }
