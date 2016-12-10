@@ -11,6 +11,7 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
+int pipeFd[2];
 
 volatile int currentTimeSlot;
 

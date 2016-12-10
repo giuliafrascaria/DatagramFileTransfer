@@ -26,8 +26,6 @@ struct selectCell
 {
     int value;
     struct timer packetTimer;
-    int seqNum;
-    struct timer * wheelTimer;
 };
 
 typedef struct datagram_t
@@ -65,6 +63,12 @@ struct headTimer
 {
     struct timer * nextTimer;
 };
+
+struct pipeMessage
+{
+    int seqNum;
+    short int isFinal;
+};
 //----------------------------------------------------------------------------------------------------------------TIMER
 
 
@@ -76,7 +80,7 @@ void initWindow();
 
 void sentPacket(int packetN, int retransmission);
 
-void ackSentPacket(int ackN, int currentSlot, struct details *details);
+
 
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
@@ -95,6 +99,7 @@ void * timerFunction();
 void initTimerWheel();
 void startTimer(int packetN, int posInWheel);
 int getWheelPosition();
+void clockTick();
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
                            int firstPacket, char ** FN);

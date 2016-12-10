@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
@@ -12,6 +13,7 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
+int pipeFd[2];
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 
@@ -43,11 +45,28 @@ int main()
 
 void clientSendFunction()
 {
+
+    if(pipe(pipeFd) == -1)
+    {
+        perror("error in pipe open");
+    }
+
     initProcess();
+
+    struct pipeMessage rtxN;
+    memset(&rtxN, 0, sizeof(struct pipeMessage));
 
     for(;;)
     {
-
+        if(read(pipeFd[0], &rtxN, sizeof(struct pipeMessage)) == -1)
+        {
+            perror("error on pipe read");
+        }
+        else
+        {
+            printf("ho trovato un pipeMessage con numero di seq %d\n", rtxN.seqNum);
+            memset(&rtxN, 0, sizeof(struct pipeMessage));
+        }
     }
 }
 
