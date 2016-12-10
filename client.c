@@ -89,7 +89,6 @@ int checkPipe(struct pipeMessage *rtxN)
         {
             return 0;
         }
-
     }
     else
     {
@@ -120,6 +119,13 @@ void initProcess()
 
     senderServerAddress = createStruct(4242); //create struct with server port
     socketfd = createSocket();
+
+    if (fcntl(socketfd, F_SETFL, O_NONBLOCK) == -1)
+    {
+        perror("error in fcntl");
+    }
+    printf("ho settato la socket a non bloccante\n");
+
     printf("starting handshake procedure\n\n");
     startClientConnection( &senderServerAddress, serverLen, socketfd);
 }
@@ -151,17 +157,22 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
-    struct pipeMessage *rtxN;
+    struct pipeMessage rtxN;
     int i = 0;
     while(i == 0){
-        if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1 && errno == EAGAIN)
+        if(checkPipe(&rtxN))
         {
+            printf("devo ritrasmettere\n");
             sendSYN(servAddr, servLen, socketfd);
         }
-        if(recvfrom(servAddr, (char *) &SYN, sizeof(handshake), 0, NULL, sizeof(struct sockaddr_in)) == -1 && errno == EAGAIN)
+        if((recvfrom(socketfd, (char *) &SYN, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) == -1) && (errno != EAGAIN))
+        {
+            perror("error in socket read");
+            //FAI COSE
+        }
+        if((recvfrom(socketfd, (char *) &SYN, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
         {
             i++;
-            //FAI COSE
         }
     }
 }
