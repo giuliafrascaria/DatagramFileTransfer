@@ -29,8 +29,8 @@ int checkPipe(struct pipeMessage *rtxN);
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
-pthread_t listenThread, timerThread;
 
+pthread_t listenThread, timerThread;
 struct selectCell selectiveWnd[WINDOWSIZE];
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,7 +43,6 @@ int main()
     clientSendFunction();
     exit(EXIT_SUCCESS);
 }
-
 
 void clientSendFunction()
 {
@@ -123,16 +122,9 @@ void initProcess()
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
-    handshake SYN;
-    SYN.sequenceNum = rand() % 4096;
-    //mando il primo datagramma senza connettermi
-    sendACK(socketfd, &SYN, servAddr, servLen);
-    sentPacket(SYN.sequenceNum, 0);
-    int i;
-    for(i = 0; i < WINDOWSIZE; i++)
-    {
-        printf("[%d]", selectiveWnd[i].value);
-    }
+    sendSYN(servAddr, servLen, socketfd);
+    waitForSYNACK(servAddr, servLen, socketfd);
+    sendSYNACK(servAddr, servLen, socketfd);
 }
 
 
@@ -143,5 +135,66 @@ void * clientListenFunction()
     //return (EXIT_SUCCESS);
 
 }
+
+void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+{
+    handshake SYN;
+    SYN.sequenceNum = rand() % 4096;
+    //mando il primo datagramma senza connettermi
+    sendACK(socketfd, &SYN, servAddr, servLen);
+    sentPacket(SYN.sequenceNum, 0);
+}
+
+void waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+{
+    handshake SYN;
+    struct pipeMessage *rtxN;
+    int i = 0;
+    while(i == 0){
+        if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1 && errno == EAGAIN)
+        {
+            sendSYN(servAddr, servLen, socketfd);
+        }
+        if(recvfrom(servAddr, (char *) &SYN, sizeof(handshake), 0, NULL, sizeof(struct sockaddr_in)) == -1 && errno == EAGAIN)
+        {
+            i++;
+            //FAI COSE
+        }
+    }
+}
+sendSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+{
+    handshake SYNACK;
+    //riempimento synack
+    SYNACK.sequenceNum = rand() % 4096;
+    //mando il primo datagramma senza connettermi
+    sendACK(socketfd, &SYNACK, servAddr, servLen);
+    sentPacket(SYNACK.sequenceNum, 0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
