@@ -80,8 +80,7 @@ void initWindow()
     //devo impostare sendBase e nextseqnum, non so bene quando
 }
 
-void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim,
-                struct timer * packetTimer, int retransmission)
+void sentPacket(pthread_mutex_t *mtxARCVD , int packetN, int windowDim, int retransmission)
 {
     if(retransmission == 0)
     {
@@ -259,17 +258,12 @@ void receiveMsg(int mainSocket, handshake * SYN, size_t SYNlen, struct sockaddr 
     }
 }
 
-/*
+
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, int currentTimeSlot, char ** FN)
+                           int firstPacket, char ** FN)
 {
-
-
-    //printf("RETRANSMISSION SERVER ACTIVATED\n");
-    int sequenceNumber, actualOffset, offset, slot, fd;
+    int sequenceNumber,fd;
     ssize_t readByte;
-
-
     datagram sndPacket;
 
 
@@ -282,6 +276,7 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
     sndPacket.isFinal = 0;
     sndPacket.command = packet->command;
 
+    fd = open(*FN, O_RDONLY);
     while (fd == -1) {
         perror("1: error on open file, retransmission");
         sleep(1);
@@ -301,29 +296,13 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
         printf("sto ritrasmettendo il pacchetto finale\n");
     }
 
-    actualOffset = (int) (currentRTT->previousEstimate / 1000) / 500;
-    offset = MAX(8, actualOffset);
-
-    slot = currentTimeSlot;
-    printf("RETRANSMISSION : sentPacket\n");
-
-    startTimer(sequenceNumber,  (slot+offset)%2048);
-
-    printf("RETRANSMISSION : ritrasmetto pacchetto con numero di sequenza %d\n", sndPacket.seqNum);
-
+    int pos = getWheelPosition();
+    startTimer(sequenceNumber, pos);
     if (write(details->sockfd, (char *) &sndPacket, sizeof(datagram)) == -1) {
         perror("datagram send error");
     }
-
-
-    printf("RETRANSMISSION : ritrasmissione avvenuta\n");
-
-    //----------------------------------
-
-
     if (close(fd) == -1) {
         perror("0: error on close, retransmission");
     }
 
 }
-*/

@@ -16,8 +16,6 @@ volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 
 
-pthread_t listenThread;
-pthread_t timerThread;
 
 void clientSendFunction();
 void * clientListenFunction();
@@ -27,6 +25,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
+pthread_t listenThread, timerThread;
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 
@@ -91,7 +90,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
     //struct timer * packetTimer = malloc(sizeof(struct timer));
 
-    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE, NULL, 0);
+    sentPacket(NULL, SYN.sequenceNum, WINDOWSIZE,  0);
 
     int i;
     for(i = 0; i < WINDOWSIZE; i++)
