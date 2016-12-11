@@ -103,6 +103,8 @@ struct sockaddr_in createStruct(unsigned short portN);
 
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 
+int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK);
+
 //---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
 
 void sendDatagram(struct details * details, struct datagram_t * sndPacket);

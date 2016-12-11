@@ -145,6 +145,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     }
     else //se ritorna -1 devo ritrasmettere
     {
+        initWindow();
         startClientConnection(servAddr, servLen, socketfd);
     }
 
@@ -164,6 +165,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
     details.servSeq = SYN.sequenceNum;
+    printf("sending SYN\n");
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
 }
@@ -171,6 +173,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYNACK;
+    int sockResult;
     struct pipeMessage rtxN;
     for(;;){
         if(checkPipe(&rtxN))
@@ -178,12 +181,13 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
             printf("devo ritrasmettere\n");
             return 0;
         }
-        if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) == -1) && (errno != EAGAIN))
+        sockResult = checkSocketAck(servAddr, servLen, socketfd, &SYNACK);
+        if(sockResult == -1)
         {
             perror("error in socket read");
             return -1;
         }
-        if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
+        if(sockResult == 1)
         {
             //receiveACK(socketfd, &SYNACK, (struct sockaddr *) servAddr, &servLen)
             printf("ho ricevuto un syn ack %d\n\n", SYNACK.sequenceNum);

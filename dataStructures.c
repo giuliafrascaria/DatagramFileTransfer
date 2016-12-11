@@ -21,7 +21,7 @@ extern volatile int currentTimeSlot;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
-int offset = 3;
+int offset = 10;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -61,6 +61,25 @@ int createSocket()
         exit(EXIT_FAILURE);
     }
     return socketfd;
+}
+
+int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK)
+{
+    ssize_t res;
+    res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
+
+    if((res == -1) && (errno != EAGAIN))
+    {
+        return -1;
+    }
+    else if(res > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
@@ -166,7 +185,7 @@ void * timerFunction()
             }
             else
             {
-                printf("cella vuota\n");
+                //printf("cella vuota\n");
             }
 
             clockTick();
