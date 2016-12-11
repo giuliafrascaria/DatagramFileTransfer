@@ -71,10 +71,7 @@ void initWindow()
     int i;
     for(i = 0; i < windowSize; i++)
     {
-
         selectiveWnd[i].value = 0;
-
-
     }
 
     printf("inizializzazione terminata\n");
@@ -94,20 +91,33 @@ void sentPacket(int packetN, int retransmission)
     }
 }
 
-
-int getWheelPosition()
+void ackSentPacket(int ackN, int currentSlot)
 {
-    if(pthread_mutex_lock(&posinwheelMTX) == -1)
+    printf("ack del pacchetto = %d\n\n\n", ackN);
+
+
+    if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
-        perror("error in mutex lock");
+
+        printf("aggiorno la selective repeat\n");
+        ((selectiveWnd)[ackN % windowSize]).value = 2;
+
+        int i;
+        printf("\n |");
+        for (i = 0; i < windowSize; i++)
+        {
+            if (i == ackN % windowSize)
+            {
+                printf(" (%d) |", (selectiveWnd)[i].value);
+            }
+            else {
+                printf(" %d |", (selectiveWnd)[i].value);
+            }
+        }
+        printf("\n");
+
     }
-    int pos = (currentTimeSlot + offset)%timerSize;
-    if(pthread_mutex_unlock(&posinwheelMTX) == -1)
-    {
-        perror("error in mutex unlock");
-    }
-    printf("timer will be set in position %d\n\n", pos);
-    return(pos);
+
 }
 
 
@@ -182,6 +192,21 @@ void clockTick()
 }
 
 
+int getWheelPosition()
+{
+    if(pthread_mutex_lock(&posinwheelMTX) == -1)
+    {
+        perror("error in mutex lock");
+    }
+    int pos = (currentTimeSlot + offset)%timerSize;
+    if(pthread_mutex_unlock(&posinwheelMTX) == -1)
+    {
+        perror("error in mutex unlock");
+    }
+    printf("timer will be set in position %d\n\n", pos);
+    return(pos);
+}
+
 void startTimer(int packetN, int posInWheel)
 {
 
@@ -226,10 +251,18 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
     datagram sndPacket;
 
 
+
+    //stessa cosa di retransmission client
+    //-----------------------------------------------------------------------------------------------------------------------------------
+
     while (read(pipeRT, &sequenceNumber, sizeof(int)) == -1) {
         perror("1: error in read pipe");
         sleep(1);
     }
+
+    //------------------------------------------------------------------------------------------------------------------------------------
+
+
     sndPacket.seqNum = sequenceNumber;
     sndPacket.opID = packet->opID;
     sndPacket.isFinal = 0;
@@ -270,16 +303,30 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
                            int firstPacket, char * FN)
 {
 
+    //per come stiamo strutturando adesso io credo che questo vada cambiato, la read sulla pipe dovrebbe già essere
+    //avvenuta, qui si passa il pipeMessage e questo manda solo il paccheto ricostruito
 
     int sequenceNumber, fd;
     ssize_t readByte;
     struct timer *packetTimer = malloc(sizeof(struct timer));
     datagram sndPacket;
 
+
+
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //----------------------------------------------------------------ERRORE----------------------------------------------------------------------
+
+    //non legge un intero dalla pipe, così va in segmentation fault. legge un pipeMessage
     while (read(pipeRT, &sequenceNumber, sizeof(int)) == -1) {
         perror("1: error in read pipe");
         sleep(1);
     }
+    //--------------------------------------------------------------------------------------------------------------------------------------------
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
     packetTimer->seqNum = sequenceNumber;
     if (packet->command == 0 || packet->command == 2 || (packet->command == 1 && sequenceNumber == firstPacket))
     {
@@ -336,15 +383,20 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         perror("error in sending data\n");
         exit(EXIT_FAILURE);
     }
+    printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
-void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, socklen_t *slen)
+void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
 {
-    ssize_t msgLen = recvfrom(mainSocket, (char *) SYN, sizeof(handshake), 0, address, slen);
+    ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
     if(msgLen == -1)
     {
         perror("error in recvfrom");
     }
+    //aggiorno selective repeat e blocco timer
+
+    ackSentPacket(ACK->sequenceNum, 0);
+
 }
 
 int openFile(char * fileName)

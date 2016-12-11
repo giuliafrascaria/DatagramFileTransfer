@@ -8,7 +8,7 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000000
+#define NANOSLEEP 100000
 
 
 int timerSize = TIMERSIZE;
@@ -24,7 +24,7 @@ void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void send_ACK(socklen_t servLen, int socketfd, int synackSN);
+void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 
 
 void initProcess();
@@ -135,7 +135,19 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 {
     sendSYN(servAddr, servLen, socketfd);
     int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);
-    send_ACK(servLen, socketfd, rcvSequence);
+    if(rcvSequence == -1)
+    {
+        perror("error in connection");
+    }
+    else if(rcvSequence > 0)//ho ricevuto il SYNACK
+    {
+        send_ACK(servAddr, servLen, socketfd, rcvSequence);
+    }
+    else //se ritorna -1 devo ritrasmettere
+    {
+        startClientConnection(servAddr, servLen, socketfd);
+    }
+
 }
 
 
@@ -154,45 +166,44 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     details.servSeq = SYN.sequenceNum;
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
-    printf("syn inviato\n");
 }
 
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYNACK;
     struct pipeMessage rtxN;
-    for(;;)
-    {
+    for(;;){
         if(checkPipe(&rtxN))
         {
             printf("devo ritrasmettere\n");
-            sendSYN(servAddr, servLen, socketfd);
+            return 0;
         }
         if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) == -1) && (errno != EAGAIN))
         {
             perror("error in socket read");
+            return -1;
         }
         if((recvfrom(socketfd, (char *) &SYNACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen) > 0))
         {
-            printf("ho ricevuto un syn ack\n\n");
+            //receiveACK(socketfd, &SYNACK, (struct sockaddr *) servAddr, &servLen)
+            printf("ho ricevuto un syn ack %d\n\n", SYNACK.sequenceNum);
+            ackSentPacket(SYNACK.ack, 0);
+
             //--------------------------------------------INIT GLOBAL DETAILS
-            details.addr = *servAddr;
-            printf("synack ricevuto\n");
             return SYNACK.sequenceNum;
         }
     }
 }
 
-void send_ACK(socklen_t servLen, int socketfd, int synackSN)
+void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
     handshake ACK;
     ACK.ack = synackSN + 1;
     ACK.sequenceNum = details.servSeq + 1;
     ACK.windowsize = windowSize;
 
-    sendACK(socketfd, &ACK, &(details.addr), servLen);
+    sendACK(socketfd, &ACK, servAddr, servLen);
     sentPacket(ACK.sequenceNum, 0);
-    printf("pacchetto inviato\n");
 }
 
 

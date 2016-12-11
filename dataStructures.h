@@ -93,6 +93,8 @@ void initWindow();
 
 void sentPacket(int packetN, int retransmission);
 
+void ackSentPacket(int ackN, int currentSlot);
+
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 
 int createSocket();
@@ -107,7 +109,7 @@ void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void receiveACK(int mainSocket, handshake * SYN, struct sockaddr * address, socklen_t *slen);
+void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
 
 void createThread(pthread_t * thread, void * function, void * arguments);
 
