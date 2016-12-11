@@ -93,7 +93,7 @@ void initWindow()
         selectiveWnd[i].value = 0;
     }
 
-    printf("inizializzazione terminata\n");
+    printf("inizializzo ruota della selective\n");
 
 }
 
@@ -103,7 +103,7 @@ void sentPacket(int packetN, int retransmission)
     {
         (selectiveWnd[packetN % windowSize]).value = 1;
         ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
-        printf("updated selective repeat\n");
+        //printf("updated selective repeat\n");
 
         int pos = getWheelPosition();
         startTimer(packetN, pos);
@@ -112,7 +112,7 @@ void sentPacket(int packetN, int retransmission)
 
 void ackSentPacket(int ackN)
 {
-    printf("ack del pacchetto = %d\n\n\n", ackN);
+    printf("ricevuto ack per il mio pacchetto inviato con numero di sequenza = %d\n\n\n", ackN);
 
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
@@ -121,7 +121,7 @@ void ackSentPacket(int ackN)
         ((selectiveWnd)[ackN % windowSize]).value = 2;
     }
 
-    printWindow();
+    //printWindow();
     slideWindow();
 
 
@@ -163,13 +163,13 @@ void createThread(pthread_t * thread, void * function, void * arguments)
     {
         perror("error in pthread_create");
     }
-    printf("thread creato\n");
+    //printf("thread creato\n");
 }
 
 //-----------------------------------------------------------------------------------------------------------------TIMER
 void * timerFunction()
 {
-    printf("sono il timer\n\n");
+    printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
 
@@ -237,7 +237,7 @@ int getWheelPosition()
     {
         perror("error in mutex unlock");
     }
-    printf("timer will be set in position %d\n\n", pos);
+    //printf("timer will be set in position %d\n\n", pos);
     return(pos);
 }
 
@@ -255,7 +255,7 @@ void startTimer(int packetN, int posInWheel)
     else
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
-    printf("setting timer in wheel position %d\n", posInWheel);
+    //printf("setting timer in wheel position %d\n", posInWheel);
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
     //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
@@ -264,12 +264,12 @@ void startTimer(int packetN, int posInWheel)
 
 void initTimerWheel()
 {
-    printf("inizializzo ruota\n\n");
+    printf("inizializzo ruota del timer\n");
     for(int i = 0; i < timerSize; i++)
     {
         timerWheel[i].nextTimer = NULL;
     }
-    printf("inizializzazione terminata\n\n");
+    //printf("inizializzazione terminata\n\n");
 }
 
 //----------------------------------------------------------------------------------------------------------------

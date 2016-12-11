@@ -153,7 +153,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
 void * clientListenFunction()
 {
-    printf("sono il listener\n\n");
+    printf("listener thread attivato\n\n");
     sleep(10);
     //return (EXIT_SUCCESS);
 
@@ -170,6 +170,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     details.servSeq = SYN.sequenceNum;
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
+    printf("ho inviato il SYN. numero di sequenza : %d\n", SYN.sequenceNum);
 }
 
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -192,7 +193,7 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         }
         if(sockResult == 1)
         {
-            printf("ho ricevuto un syn ack %d\n\n", SYNACK.sequenceNum);
+            printf("SYNACK ricevuto. numero di sequenza : %d\n", SYNACK.sequenceNum);
             ackSentPacket(SYNACK.ack);
 
             //--------------------------------------------INIT GLOBAL DETAILS
@@ -210,6 +211,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
     sendACK(socketfd, &ACK, servAddr, servLen);
     sentPacket(ACK.sequenceNum, 0);
+    printf("ACK inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
 
 

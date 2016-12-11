@@ -97,6 +97,7 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     }
     else if(rcvSequence > 0)
     {
+        printf("ACK ricevuto con numero di sequenza : %d. fine connessione parte 1\n", rcvSequence);
         //FINE DELLA CONNESSIONE PARTE
     }
     else //se ritorna 0 devo ritrasmettere
@@ -122,7 +123,6 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             return -1;
         }
         if (i == 1) {
-            printf("sono in waitForAck\n");
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
@@ -137,6 +137,6 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     SYN_ACK.sequenceNum = rand() % 4096;
     SYN_ACK.ack = details.servSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
-    printf("invio il synack\n");
+    printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
 
 }
