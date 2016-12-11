@@ -110,7 +110,7 @@ void sentPacket(int packetN, int retransmission)
     }
 }
 
-void ackSentPacket(int ackN, int currentSlot)
+void ackSentPacket(int ackN)
 {
     printf("ack del pacchetto = %d\n\n\n", ackN);
 
@@ -120,7 +120,7 @@ void ackSentPacket(int ackN, int currentSlot)
 
         printf("aggiorno la selective repeat\n");
         ((selectiveWnd)[ackN % windowSize]).value = 2;
-
+/*
         int i;
         printf("\n |");
         for (i = 0; i < windowSize; i++)
@@ -134,7 +134,7 @@ void ackSentPacket(int ackN, int currentSlot)
             }
         }
         printf("\n");
-
+*/
     }
 
 }
@@ -183,10 +183,10 @@ void * timerFunction()
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
             }
-            else
-            {
-                //printf("cella vuota\n");
-            }
+//            else
+//            {
+//                printf("cella vuota\n");
+//            }
 
             clockTick();
             usleep((useconds_t) nanoSleep);
@@ -402,7 +402,7 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         perror("error in sending data\n");
         exit(EXIT_FAILURE);
     }
-    printf("sent ACK number %d\n", ACK->sequenceNum);
+    //printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
 void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
@@ -414,7 +414,7 @@ void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, sock
     }
     //aggiorno selective repeat e blocco timer
 
-    ackSentPacket(ACK->sequenceNum, 0);
+    ackSentPacket(ACK->sequenceNum);
 
 }
 

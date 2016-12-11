@@ -8,7 +8,7 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 100000
+#define NANOSLEEP 500000
 
 
 int timerSize = TIMERSIZE;
@@ -115,7 +115,7 @@ void initProcess()
     struct sockaddr_in senderServerAddress;
     socklen_t serverLen = sizeof(struct sockaddr_in);
 
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //----------------------------------------------------
 
 
     senderServerAddress = createStruct(4242); //create struct with server port
@@ -125,9 +125,9 @@ void initProcess()
     {
         perror("error in fcntl");
     }
-    printf("ho settato la socket a non bloccante\n");
+    //printf("ho settato la socket a non bloccante\n");
 
-    printf("starting handshake procedure\n\n");
+    //printf("starting handshake procedure\n\n");
     startClientConnection( &senderServerAddress, serverLen, socketfd);
 }
 
@@ -165,7 +165,6 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     handshake SYN;
     SYN.sequenceNum = rand() % 4096;
     details.servSeq = SYN.sequenceNum;
-    printf("sending SYN\n");
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
 }
@@ -189,9 +188,8 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         }
         if(sockResult == 1)
         {
-            //receiveACK(socketfd, &SYNACK, (struct sockaddr *) servAddr, &servLen)
             printf("ho ricevuto un syn ack %d\n\n", SYNACK.sequenceNum);
-            ackSentPacket(SYNACK.ack, 0);
+            ackSentPacket(SYNACK.ack);
 
             //--------------------------------------------INIT GLOBAL DETAILS
             return SYNACK.sequenceNum;
