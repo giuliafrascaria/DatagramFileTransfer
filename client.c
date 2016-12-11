@@ -29,7 +29,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-int checkPipe(struct pipeMessage *rtxN);
+
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,21 +52,12 @@ int main()
 void clientSendFunction()
 {
 
-    if(pipe(pipeFd) == -1)
-    {
-        perror("error in pipe open");
-    }
-
-    if (fcntl(pipeFd[0], F_SETFL, O_NONBLOCK) == -1)
-    {
-        perror("error in fcntl");
-    }
+    initPipe();
 
     initProcess();
 
     struct pipeMessage rtxN;
     memset(&rtxN, 0, sizeof(struct pipeMessage));
-
 
     for(;;)
     {
@@ -77,27 +68,7 @@ void clientSendFunction()
     }
 }
 
-int checkPipe(struct pipeMessage *rtxN)
-{
-    if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1)
-    {
-        if(errno != EAGAIN)
-        {
-            perror("error in pipe read");
-            return -1;
-        }
-        else
-        {
-            return 0;
-        }
-    }
-    else
-    {
-        printf("\n\nho trovato un rtxN\n\n");
-        memset(rtxN, 0, sizeof(struct pipeMessage));
-        return 1;
-    }
-}
+
 
 void initProcess()
 {
@@ -141,7 +112,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     }
     else if(rcvSequence > 0)//ho ricevuto il SYNACK
     {
-        send_ACK(servAddr, servLen, socketfd, rcvSequence);
+        //send_ACK(servAddr, servLen, socketfd, rcvSequence);
     }
     else //se ritorna -1 devo ritrasmettere
     {

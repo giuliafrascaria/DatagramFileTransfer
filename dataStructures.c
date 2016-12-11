@@ -166,6 +166,20 @@ void createThread(pthread_t * thread, void * function, void * arguments)
     //printf("thread creato\n");
 }
 
+void initPipe()
+{
+    if(pipe(pipeFd) == -1)
+    {
+        perror("error in pipe open");
+    }
+
+    if (fcntl(pipeFd[0], F_SETFL, O_NONBLOCK) == -1)
+    {
+        perror("error in fcntl");
+    }
+
+}
+
 //-----------------------------------------------------------------------------------------------------------------TIMER
 void * timerFunction()
 {
@@ -399,6 +413,28 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
             perror("0: error on close, retransmission");
         }
 
+    }
+}
+
+int checkPipe(struct pipeMessage *rtxN)
+{
+    if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1)
+    {
+        if(errno != EAGAIN)
+        {
+            perror("error in pipe read");
+            return -1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        printf("\n\nho trovato un rtxN\n\n");
+        memset(rtxN, 0, sizeof(struct pipeMessage));
+        return 1;
     }
 }
 

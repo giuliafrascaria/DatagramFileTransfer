@@ -37,6 +37,8 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));
 
+    initPipe();
+
     createThread(&timerThread, timerFunction, NULL);
     createThread(&senderThread, sendFunction, NULL);
 
@@ -49,6 +51,7 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 
 void * sendFunction()
 {
+
     printf("sono il sender\n");
 }
 
@@ -114,15 +117,22 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
     }
     socklen_t slen = sizeof(struct sockaddr_in);
     handshake ACK;
-    int i = 0;
-    while (i == 0)
+    struct pipeMessage rtxN;
+    int sockResult;
+    for(;;)
     {
-        i = checkSocketAck(clientAddr, slen, socketFD, &ACK);
-        if (i == -1) {
+        if(checkPipe(&rtxN))
+        {
+            printf("devo ritrasmettere\n");
+            return 0;
+        }
+        sockResult = checkSocketAck(clientAddr, slen, socketFD, &ACK);
+        if (sockResult == -1) {
             perror("error in socket read");
             return -1;
         }
-        if (i == 1) {
+        if (sockResult == 1) {
+            printf("sono in waitForAck\n");
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
@@ -137,6 +147,8 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     SYN_ACK.sequenceNum = rand() % 4096;
     SYN_ACK.ack = details.servSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
+
+    sentPacket(SYN_ACK.sequenceNum, 0);
     printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
 
 }

@@ -87,6 +87,8 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
 
 void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
                            int firstPacket, char * FN);
+
+int checkPipe(struct pipeMessage *rtxN);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow();
@@ -98,6 +100,12 @@ void ackSentPacket(int ackN);
 void printWindow();
 
 void slideWindow();
+
+//----------------------------------------------------------------------------------------------------------------THREAD
+
+void createThread(pthread_t * thread, void * function, void * arguments);
+
+void initPipe();
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 
@@ -116,8 +124,6 @@ void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 
 void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
-
-void createThread(pthread_t * thread, void * function, void * arguments);
 
 int openFile(char * fileName);
 
