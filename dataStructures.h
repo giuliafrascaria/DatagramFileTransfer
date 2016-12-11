@@ -95,6 +95,10 @@ void sentPacket(int packetN, int retransmission);
 
 void ackSentPacket(int ackN, int currentSlot);
 
+void printWindow();
+
+void slideWindow();
+
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 
 int createSocket();

@@ -14,6 +14,7 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
+int sendBase;
 int pipeFd[2];
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
@@ -163,7 +164,11 @@ void * clientListenFunction()
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
-    SYN.sequenceNum = rand() % 4096;
+
+    srandom((unsigned int)getpid());
+    SYN.sequenceNum = (int) random() % 4096;
+
+    sendBase = SYN.sequenceNum;
     details.servSeq = SYN.sequenceNum;
     printf("sending SYN\n");
     sendACK(socketfd, &SYN, servAddr, servLen);
@@ -175,7 +180,8 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
     handshake SYNACK;
     int sockResult;
     struct pipeMessage rtxN;
-    for(;;){
+    for(;;)
+    {
         if(checkPipe(&rtxN))
         {
             printf("devo ritrasmettere\n");

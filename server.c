@@ -12,6 +12,7 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
+int sendBase;
 int pipeFd[2];
 
 volatile int currentTimeSlot;
@@ -85,7 +86,7 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
 
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
-    SYN_ACK.sequenceNum = rand() % 4096;
+    SYN_ACK.sequenceNum = (int )random() % 4096;
     SYN_ACK.ack = (message->sequenceNum);
 
     //mando il datagramma ancora senza connettermi

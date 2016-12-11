@@ -15,7 +15,7 @@
 
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
-extern int  timerSize, nanoSleep, windowSize;
+extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern volatile int currentTimeSlot;
 
@@ -117,26 +117,41 @@ void ackSentPacket(int ackN, int currentSlot)
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
-
         printf("aggiorno la selective repeat\n");
         ((selectiveWnd)[ackN % windowSize]).value = 2;
-
-        int i;
-        printf("\n |");
-        for (i = 0; i < windowSize; i++)
-        {
-            if (i == ackN % windowSize)
-            {
-                printf(" (%d) |", (selectiveWnd)[i].value);
-            }
-            else {
-                printf(" %d |", (selectiveWnd)[i].value);
-            }
-        }
-        printf("\n");
-
     }
 
+    printWindow();
+    slideWindow();
+
+
+
+}
+
+void printWindow()
+{
+    int i;
+    printf("\n |");
+    for (i = 0; i < windowSize; i++)
+    {
+        if (i == sendBase % windowSize)
+        {
+            printf(" (%d) |", (selectiveWnd)[i].value);
+        }
+        else {
+            printf(" %d |", (selectiveWnd)[i].value);
+        }
+    }
+    printf("\n");
+}
+
+void slideWindow()
+{
+    while ((selectiveWnd[sendBase % windowSize]).value == 2)
+    {
+        selectiveWnd[sendBase % windowSize].value = 0;
+        sendBase = sendBase + 1;
+    }
 }
 
 
