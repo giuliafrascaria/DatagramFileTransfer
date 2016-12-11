@@ -49,7 +49,7 @@ int main() {
     {
 
         handshake SYN;
-        receiveACK(mainSocket, &SYN, (struct sockaddr *) &(client.addr), &slen);
+        acceptConnection(mainSocket, &SYN, (struct sockaddr *) &(client.addr), &slen);
         //arriva un messaggio e salvo i dati del client nella struct
 
         //fork to allow child process to serve the client

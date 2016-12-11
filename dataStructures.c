@@ -369,7 +369,8 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
         printf("mando il paccetto ritrasmesso\n");
         sendDatagram(details, packet);
 
-    } else    //packet.command == 1 && firstpacket != 0
+    }
+    else    //packet.command == 1 && firstpacket != 0
     {
 
         sndPacket.seqNum = sequenceNumber;
@@ -433,6 +434,15 @@ void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, sock
 
 }
 
+void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
+{
+    ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
+    if(msgLen == -1)
+    {
+        perror("error in recvfrom");
+    }
+}
+
 int openFile(char * fileName)
 {
     int fd = open(fileName, O_RDONLY);
@@ -442,4 +452,13 @@ int openFile(char * fileName)
         fd = open(fileName, O_RDONLY);
     }
     return fd;
+}
+
+void closeFile(int fd)
+{
+    if(close(fd) == -1)
+    {
+        perror("error in file close\n");
+        exit(EXIT_FAILURE);
+    }
 }

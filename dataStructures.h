@@ -121,6 +121,9 @@ void createThread(pthread_t * thread, void * function, void * arguments);
 
 int openFile(char * fileName);
 
+void closeFile(int fd);
+
+void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

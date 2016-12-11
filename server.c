@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
@@ -19,12 +20,15 @@ volatile int currentTimeSlot;
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 struct headTimer timerWheel[TIMERSIZE];
+struct details details;
 
 pthread_t timerThread;
 pthread_t senderThread;
 
 void listenCycle();
-
+int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
+void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
+void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
@@ -36,14 +40,11 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
     createThread(&timerThread, timerFunction, NULL);
     createThread(&senderThread, sendFunction, NULL);
 
-    //startServerConnection(details, socketfd, message);
-
     printf("finita la creazione dei thread\n");
 
     startServerConnection(details, socketfd, message);
 
     listenCycle();
-
 }
 
 void * sendFunction()
@@ -63,12 +64,7 @@ void listenCycle()
 void startServerConnection(struct details * cl, int socketfd, handshake * message)
 {
     //chiudo la socket pubblica nel processo figlio
-
-    if(close(socketfd) == -1)
-    {
-        perror("error in public socket close\n");
-        exit(EXIT_FAILURE);
-    }
+    closeFile(socketfd);
 
     //apro la socket dedicata al client su una porta casuale
     int privateSocket;
@@ -84,12 +80,62 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     //per il client rimango in ascolto su questa socket
     bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
 
-    handshake SYN_ACK;
-    srandom((unsigned int)getpid());
-    SYN_ACK.sequenceNum = (int )random() % 4096;
-    SYN_ACK.ack = (message->sequenceNum);
+    details.servSeq = (message->sequenceNum);
 
     //mando il datagramma ancora senza connettermi
+    sendSYNACK(privateSocket, socklen, cl);
+    terminateConnection(privateSocket, &(cl->addr), socklen, cl);
+
+}
+
+void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl )
+{
+    int rcvSequence = waitForAck(socketFD, clientAddr);
+    if(rcvSequence == -1)
+    {
+        perror("error in connection");
+    }
+    else if(rcvSequence > 0)
+    {
+        //FINE DELLA CONNESSIONE PARTE
+    }
+    else //se ritorna 0 devo ritrasmettere
+    {
+        sendSYNACK(socketFD, socklen , cl);
+        terminateConnection(socketFD, clientAddr, socklen, cl);
+    }
+}
+
+int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
+{
+    if (fcntl(socketFD, F_SETFL, O_NONBLOCK) == -1) {
+        perror("error in fcntl");
+    }
+    socklen_t slen = sizeof(struct sockaddr_in);
+    handshake ACK;
+    int i = 0;
+    while (i == 0)
+    {
+        i = checkSocketAck(clientAddr, slen, socketFD, &ACK);
+        if (i == -1) {
+            perror("error in socket read");
+            return -1;
+        }
+        if (i == 1) {
+            printf("sono in waitForAck\n");
+            ackSentPacket(ACK.ack);
+            //--------------------------------------------INIT GLOBAL DETAILS
+            return ACK.sequenceNum;
+        }
+    }
+}
+
+void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
+{
+    handshake SYN_ACK;
+    srandom((unsigned int)getpid());
+    SYN_ACK.sequenceNum = rand() % 4096;
+    SYN_ACK.ack = details.servSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
     printf("invio il synack\n");
 

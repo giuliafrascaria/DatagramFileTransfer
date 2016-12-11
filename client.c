@@ -20,7 +20,6 @@ volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE];
 
 
-
 void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -152,7 +151,6 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
 }
 
-
 void * clientListenFunction()
 {
     printf("sono il listener\n\n");
@@ -206,7 +204,7 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
     handshake ACK;
-    ACK.ack = synackSN + 1;
+    ACK.ack = synackSN;
     ACK.sequenceNum = details.servSeq + 1;
     ACK.windowsize = windowSize;
 

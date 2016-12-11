@@ -4,3 +4,4 @@ INADDR_ANY invece di loopback -> dataStructures.c -> createStruct()
 
 IPPROTO_UDP invece di 0 -> datastructures.c -> createSocket()
 
+con CTRL,SHIFT,"-" (meno) si fa il collapse di tutte le funzioni
