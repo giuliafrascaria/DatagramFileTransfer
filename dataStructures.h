@@ -93,7 +93,7 @@ void initWindow();
 
 void sentPacket(int packetN, int retransmission);
 
-void ackSentPacket(int ackN, int currentSlot);
+void ackSentPacket(int ackN);
 
 void printWindow();
 

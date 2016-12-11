@@ -1,12 +1,12 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <zconf.h>
+#include <unistd.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 100000
+#define NANOSLEEP 500000
 
 
 int timerSize = TIMERSIZE;
@@ -91,5 +91,6 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
 
     //mando il datagramma ancora senza connettermi
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
+    printf("invio il synack\n");
 
 }
