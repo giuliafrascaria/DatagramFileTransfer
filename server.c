@@ -63,6 +63,8 @@ void * sendFunction()
     }
 
     printf("sono dopo la cond wait\n\n");
+
+    startSecondConnection(&details, details.sockfd);
 }
 
 void listenCycle()
@@ -101,7 +103,7 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
 
 }
 
-void startSecondConnection(struct details * cl, int socketfd, handshake * message)
+void startSecondConnection(struct details * cl, int socketfd)
 {
     //chiudo la socket pubblica nel processo figlio
     closeFile(socketfd);
@@ -115,16 +117,14 @@ void startSecondConnection(struct details * cl, int socketfd, handshake * messag
     struct sockaddr_in serverAddress;
     //mi metto su una porta effimera, indicandola con sin_port = 0
     serverAddress = createStruct(0); //create struct with ephemeral port
-    printf("ho creato la struct dedicata\n");
+    printf("ho creato la seconda struct dedicata\n");
 
     //per il client rimango in ascolto su questa socket
     bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
 
-    details.remoteSeq = (message->sequenceNum);
-
     //mando il datagramma ancora senza connettermi
-    sendSYNACK(privateSocket, socklen, cl);
-    terminateConnection(privateSocket, &(cl->addr), socklen, cl);
+    sendSYNACK2(privateSocket, socklen, cl);
+    //terminateConnection(privateSocket, &(cl->addr), socklen, cl);
 
 }
 
@@ -142,6 +142,8 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
         //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
 
         sendSignalThread(&condMTX, &secondConnectionCond);
+
+        //in teoria ora posso connettere la socket
 
     }
     else //se ritorna 0 devo ritrasmettere
@@ -193,6 +195,20 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
+    SYN_ACK.ack = details.remoteSeq;
+    sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
+
+    sentPacket(SYN_ACK.sequenceNum, 0);
+    printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
+
+}
+
+void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl)
+{
+    handshake SYN_ACK;
+
+    SYN_ACK.sequenceNum = details.mySeq;
+
     SYN_ACK.ack = details.remoteSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
