@@ -25,6 +25,9 @@ struct details details;
 pthread_t timerThread;
 pthread_t senderThread;
 
+pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
+
 void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
@@ -52,7 +55,14 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 void * sendFunction()
 {
 
-    printf("sono il sender\n");
+    printf("sender thread attivato\n\n");
+
+    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+    {
+        perror("error in cond wait");
+    }
+
+    printf("sono dopo la cond wait\n\n");
 }
 
 void listenCycle()
@@ -91,6 +101,33 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
 
 }
 
+void startSecondConnection(struct details * cl, int socketfd, handshake * message)
+{
+    //chiudo la socket pubblica nel processo figlio
+    closeFile(socketfd);
+
+    //apro la socket dedicata al client su una porta casuale
+    int privateSocket;
+    privateSocket = createSocket();
+    socklen_t socklen = sizeof(struct sockaddr_in);
+
+    //collego una struct legata a una porta effimera, dedicata al client
+    struct sockaddr_in serverAddress;
+    //mi metto su una porta effimera, indicandola con sin_port = 0
+    serverAddress = createStruct(0); //create struct with ephemeral port
+    printf("ho creato la struct dedicata\n");
+
+    //per il client rimango in ascolto su questa socket
+    bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
+
+    details.servSeq = (message->sequenceNum);
+
+    //mando il datagramma ancora senza connettermi
+    sendSYNACK(privateSocket, socklen, cl);
+    terminateConnection(privateSocket, &(cl->addr), socklen, cl);
+
+}
+
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl )
 {
     int rcvSequence = waitForAck(socketFD, clientAddr);
@@ -101,7 +138,16 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     else if(rcvSequence > 0)
     {
         printf("ACK ricevuto con numero di sequenza : %d. fine connessione parte 1\n", rcvSequence);
-        //FINE DELLA CONNESSIONE PARTE
+        //avvio il thread listener per connettersi su una nuova socket
+        //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
+
+        mtxLock(&condMTX);
+        if(pthread_cond_signal(&secondConnectionCond) != 0)
+        {
+            perror("error in cond signal");
+        }
+        mtxUnlock(&condMTX);
+
     }
     else //se ritorna 0 devo ritrasmettere
     {
@@ -112,7 +158,8 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
 
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
 {
-    if (fcntl(socketFD, F_SETFL, O_NONBLOCK) == -1) {
+    if (fcntl(socketFD, F_SETFL, O_NONBLOCK) == -1)
+    {
         perror("error in fcntl");
     }
     socklen_t slen = sizeof(struct sockaddr_in);
@@ -127,12 +174,18 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             return 0;
         }
         sockResult = checkSocketAck(clientAddr, slen, socketFD, &ACK);
-        if (sockResult == -1) {
+        if (sockResult == -1)
+        {
             perror("error in socket read");
             return -1;
         }
-        if (sockResult == 1) {
-            printf("sono in waitForAck\n");
+        if (sockResult == 1)
+        {
+            details.addr = *clientAddr;
+            details.Size = slen;
+            details.sockfd = socketFD;
+            details.servSeq = ACK.sequenceNum;
+
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
