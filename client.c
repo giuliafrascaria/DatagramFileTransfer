@@ -26,7 +26,7 @@ void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
+//void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 
 
 void initProcess();
@@ -122,12 +122,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
         details.sockfd = socketfd;
 
         //segnalo al listener
-        mtxLock(&condMTX);
-        if(pthread_cond_signal(&secondConnectionCond) != 0)
-        {
-            perror("error in cond signal");
-        }
-        mtxUnlock(&condMTX);
+        sendSignalThread(&condMTX, &secondConnectionCond);
     }
     else //se ritorna -1 devo ritrasmettere
     {
@@ -163,7 +158,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     sendBase = SYN.sequenceNum;
 
      // il prossimo seqnum utile
-    details.servSeq = SYN.sequenceNum;
+    details.remoteSeq = SYN.sequenceNum;
 
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
@@ -177,7 +172,7 @@ void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     handshake SYN;
 
     SYN.sequenceNum = details.mySeq;
-    SYN.ack = details.servSeq;
+    SYN.ack = details.remoteSeq;
 
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
@@ -208,13 +203,14 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         {
             printf("SYNACK ricevuto. numero di sequenza : %d\n", SYNACK.sequenceNum);
             ackSentPacket(SYNACK.ack);
-            details.servSeq = SYNACK.sequenceNum;//---------------------------------------------serve al syn2
+            details.remoteSeq = SYNACK.sequenceNum;//---------------------------------------------serve al syn2
             //--------------------------------------------INIT GLOBAL DETAILS
             return SYNACK.sequenceNum;
         }
     }
 }
 
+/*
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
     handshake ACK;
@@ -226,7 +222,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     sentPacket(ACK.sequenceNum, 0);
     printf("ACK inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
-
+*/
 
 
 

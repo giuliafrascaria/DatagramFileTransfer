@@ -52,7 +52,7 @@ struct details
     struct sockaddr_in addr;
     int sockfd;
     socklen_t Size;
-    int servSeq;
+    int remoteSeq;
     int mySeq;
     int volatile sendBase;
     //struct selectCell selectiveWnd[];
@@ -133,6 +133,9 @@ int openFile(char * fileName);
 void closeFile(int fd);
 
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
+
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition);
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

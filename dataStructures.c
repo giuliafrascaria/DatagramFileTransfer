@@ -499,3 +499,13 @@ void closeFile(int fd)
         exit(EXIT_FAILURE);
     }
 }
+
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
+{
+    mtxLock(mtx);
+    if(pthread_cond_signal(condition) != 0)
+    {
+        perror("error in cond signal");
+    }
+    mtxUnlock(mtx);
+}

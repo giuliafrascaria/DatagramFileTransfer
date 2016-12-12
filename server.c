@@ -93,7 +93,7 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     //per il client rimango in ascolto su questa socket
     bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
 
-    details.servSeq = (message->sequenceNum);
+    details.remoteSeq = (message->sequenceNum);
 
     //mando il datagramma ancora senza connettermi
     sendSYNACK(privateSocket, socklen, cl);
@@ -120,7 +120,7 @@ void startSecondConnection(struct details * cl, int socketfd, handshake * messag
     //per il client rimango in ascolto su questa socket
     bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
 
-    details.servSeq = (message->sequenceNum);
+    details.remoteSeq = (message->sequenceNum);
 
     //mando il datagramma ancora senza connettermi
     sendSYNACK(privateSocket, socklen, cl);
@@ -141,12 +141,7 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
         //avvio il thread listener per connettersi su una nuova socket
         //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
 
-        mtxLock(&condMTX);
-        if(pthread_cond_signal(&secondConnectionCond) != 0)
-        {
-            perror("error in cond signal");
-        }
-        mtxUnlock(&condMTX);
+        sendSignalThread(&condMTX, &secondConnectionCond);
 
     }
     else //se ritorna 0 devo ritrasmettere
@@ -184,7 +179,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             details.addr = *clientAddr;
             details.Size = slen;
             details.sockfd = socketFD;
-            details.servSeq = ACK.sequenceNum;
+            details.remoteSeq = ACK.sequenceNum;
 
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
@@ -198,7 +193,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
-    SYN_ACK.ack = details.servSeq;
+    SYN_ACK.ack = details.remoteSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
     sentPacket(SYN_ACK.sequenceNum, 0);
