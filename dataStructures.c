@@ -458,8 +458,14 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
     //printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
-void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
+void receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 {
+    handshake *ACK = malloc(sizeof(handshake));
+    if(ACK == NULL)
+    {
+        perror("error in malloc");
+    }
+
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
     if(msgLen == -1)
     {
@@ -468,6 +474,8 @@ void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, sock
     //aggiorno selective repeat e blocco timer
 
     ackSentPacket(ACK->sequenceNum);
+
+    free(ACK);
 
 }
 

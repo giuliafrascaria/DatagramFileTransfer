@@ -32,6 +32,8 @@ void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
+int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
+void finishHandshake();
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
@@ -64,7 +66,28 @@ void * sendFunction()
 
     printf("sono dopo la cond wait\n\n");
 
-    startSecondConnection(&details, details.sockfd);
+    startSecondConnection(&details, details.sockfd2);
+
+    finishHandshake();
+
+
+}
+
+void finishHandshake()
+{
+    //aspetto ultimo ack
+    int res = waitForAck2(details.sockfd2, &(details.addr2));
+    if(res == 0)
+    {
+        //ritrasmetto
+        sendSYNACK2(details.sockfd2, details.Size2, &details);
+        finishHandshake();
+    }
+    else
+    {
+        //ho finito la connessione, aspetto che mi svegli il listener
+        printf("fine, sono pronto\n\n");
+    }
 }
 
 void listenCycle()
@@ -109,9 +132,8 @@ void startSecondConnection(struct details * cl, int socketfd)
     closeFile(socketfd);
 
     //apro la socket dedicata al client su una porta casuale
-    int privateSocket;
-    privateSocket = createSocket();
-    socklen_t socklen = sizeof(struct sockaddr_in);
+    details.sockfd2 = createSocket();
+    details.Size2 = sizeof(struct sockaddr_in);
 
     //collego una struct legata a una porta effimera, dedicata al client
     struct sockaddr_in serverAddress;
@@ -119,11 +141,13 @@ void startSecondConnection(struct details * cl, int socketfd)
     serverAddress = createStruct(0); //create struct with ephemeral port
     printf("ho creato la seconda struct dedicata\n");
 
+    details.addr2 = serverAddress;
+
     //per il client rimango in ascolto su questa socket
-    bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
+    bindSocket(details.sockfd2, (struct sockaddr *) &(details.addr2), details.Size2);
 
     //mando il datagramma ancora senza connettermi
-    sendSYNACK2(privateSocket, socklen, cl);
+    sendSYNACK2(details.sockfd2, details.Size2, cl);
     //terminateConnection(privateSocket, &(cl->addr), socklen, cl);
 
 }
@@ -144,7 +168,6 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
         sendSignalThread(&condMTX, &secondConnectionCond);
 
         //in teoria ora posso connettere la socket
-
     }
     else //se ritorna 0 devo ritrasmettere
     {
@@ -183,6 +206,38 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             details.sockfd = socketFD;
             details.remoteSeq = ACK.sequenceNum;
 
+            ackSentPacket(ACK.ack);
+            //--------------------------------------------INIT GLOBAL DETAILS
+            return ACK.sequenceNum;
+        }
+    }
+}
+
+int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
+{
+    if (fcntl(socketFD, F_SETFL, O_NONBLOCK) == -1)
+    {
+        perror("error in fcntl");
+    }
+    socklen_t slen = sizeof(struct sockaddr_in);
+    handshake ACK;
+    struct pipeMessage rtxN;
+    int sockResult;
+    for(;;)
+    {
+        if(checkPipe(&rtxN))
+        {
+            printf("devo ritrasmettere\n");
+            return 0;
+        }
+        sockResult = checkSocketAck(clientAddr, slen, socketFD, &ACK);
+        if (sockResult == -1)
+        {
+            perror("error in socket read");
+
+        }
+        if (sockResult == 1)
+        {
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;

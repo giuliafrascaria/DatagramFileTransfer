@@ -26,7 +26,7 @@ void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-//void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
+void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 
 
 void initProcess();
@@ -123,6 +123,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 
         //segnalo al listener
         sendSignalThread(&condMTX, &secondConnectionCond);
+
     }
     else //se ritorna -1 devo ritrasmettere
     {
@@ -136,13 +137,23 @@ void * clientListenFunction()
 {
     printf("listener thread attivato\n\n");
 
+
+    details.Size2 = sizeof(struct sockaddr_in);
+    details.sockfd2 = createSocket();
+
     if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
     {
         perror("error in cond wait");
     }
 
     printf("sono dopo la cond wait\n\n");
-    sendSYN2(&(details.addr), details.Size, details.sockfd);
+
+    sendSYN2(&(details.addr), details.Size, details.sockfd2);
+
+    waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2);
+
+    send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
+
 
     sleep(10);
     //return (EXIT_SUCCESS);
@@ -210,19 +221,19 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
     }
 }
 
-/*
+
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
     handshake ACK;
     ACK.ack = synackSN;
-    ACK.sequenceNum = details.servSeq + 1;
+    ACK.sequenceNum = details.remoteSeq;
     ACK.windowsize = windowSize;
 
     sendACK(socketfd, &ACK, servAddr, servLen);
     sentPacket(ACK.sequenceNum, 0);
-    printf("ACK inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
+    printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
-*/
+
 
 
 

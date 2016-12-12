@@ -50,8 +50,11 @@ struct details
 {
     int windowDimension;
     struct sockaddr_in addr;
+    struct sockaddr_in addr2;
     int sockfd;
+    int sockfd2;
     socklen_t Size;
+    socklen_t Size2;
     int remoteSeq;
     int mySeq;
     int volatile sendBase;
@@ -126,7 +129,7 @@ void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void receiveACK(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
+void receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
 
 int openFile(char * fileName);
 
