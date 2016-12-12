@@ -81,12 +81,11 @@ void clockTick();
 
 
 //--------------------------------------------------------------------------------------------------------RETRANSMISSION
+/*
+void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char * FN);
 
-void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char * FN);
-
-void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char * FN);
+void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char * FN);
+*/
 
 int checkPipe(struct pipeMessage *rtxN);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
@@ -116,6 +115,10 @@ struct sockaddr_in createStruct(unsigned short portN);
 void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 
 int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK);
+
+void mtxLock(pthread_mutex_t * mtx);
+
+void mtxUnlock(pthread_mutex_t * mtx);
 
 //---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
 

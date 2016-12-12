@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
@@ -23,6 +24,7 @@ struct headTimer timerWheel[TIMERSIZE];
 void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 
@@ -37,6 +39,9 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 struct details details;
 pthread_t listenThread, timerThread;
 struct selectCell selectiveWnd[WINDOWSIZE];
+
+pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -67,8 +72,6 @@ void clientSendFunction()
         }
     }
 }
-
-
 
 void initProcess()
 {
@@ -112,7 +115,19 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     }
     else if(rcvSequence > 0)//ho ricevuto il SYNACK
     {
-        //send_ACK(servAddr, servLen, socketfd, rcvSequence);
+
+        //salvo i dettagli di connessione in details
+        details.addr = *servAddr;
+        details.Size = servLen;
+        details.sockfd = socketfd;
+
+        //segnalo al listener
+        mtxLock(&condMTX);
+        if(pthread_cond_signal(&secondConnectionCond) != 0)
+        {
+            perror("error in cond signal");
+        }
+        mtxUnlock(&condMTX);
     }
     else //se ritorna -1 devo ritrasmettere
     {
@@ -125,9 +140,17 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 void * clientListenFunction()
 {
     printf("listener thread attivato\n\n");
+
+    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+    {
+        perror("error in cond wait");
+    }
+
+    printf("sono dopo la cond wait\n\n");
+    sendSYN2(&(details.addr), details.Size, details.sockfd);
+
     sleep(10);
     //return (EXIT_SUCCESS);
-
 }
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -138,10 +161,29 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     SYN.sequenceNum = (int) random() % 4096;
 
     sendBase = SYN.sequenceNum;
+
+     // il prossimo seqnum utile
     details.servSeq = SYN.sequenceNum;
+
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
+
+
     printf("ho inviato il SYN. numero di sequenza : %d\n", SYN.sequenceNum);
+}
+
+void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
+{
+    handshake SYN;
+
+    SYN.sequenceNum = details.mySeq;
+    SYN.ack = details.servSeq;
+
+    sendACK(socketfd, &SYN, servAddr, servLen);
+    sentPacket(SYN.sequenceNum, 0);
+
+
+    printf("ho inviato il SYN2. numero di sequenza : %d e ack per il server %d\n", SYN.sequenceNum, SYN.ack);
 }
 
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -166,7 +208,7 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         {
             printf("SYNACK ricevuto. numero di sequenza : %d\n", SYNACK.sequenceNum);
             ackSentPacket(SYNACK.ack);
-
+            details.servSeq = SYNACK.sequenceNum;//---------------------------------------------serve al syn2
             //--------------------------------------------INIT GLOBAL DETAILS
             return SYNACK.sequenceNum;
         }

@@ -15,6 +15,7 @@
 
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
+extern struct details details;
 extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern volatile int currentTimeSlot;
@@ -107,6 +108,8 @@ void sentPacket(int packetN, int retransmission)
 
         int pos = getWheelPosition();
         startTimer(packetN, pos);
+
+        details.mySeq = packetN+1;
     }
 }
 
@@ -123,9 +126,6 @@ void ackSentPacket(int ackN)
 
     //printWindow();
     slideWindow();
-
-
-
 }
 
 void printWindow()
@@ -180,6 +180,22 @@ void initPipe()
 
 }
 
+void mtxLock(pthread_mutex_t * mtx)
+{
+    if(pthread_mutex_lock(mtx) == -1)
+    {
+        perror("error on mutex lock");
+    }
+}
+
+void mtxUnlock(pthread_mutex_t * mtx)
+{
+    if(pthread_mutex_unlock(mtx) == -1)
+    {
+        perror("error on mutex unlock");
+    }
+}
+
 //-----------------------------------------------------------------------------------------------------------------TIMER
 void * timerFunction()
 {
@@ -225,32 +241,21 @@ void * timerFunction()
     }
 }
 
-
 void clockTick()
 {
-    if(pthread_mutex_lock(&posinwheelMTX) == -1)
-    {
-        perror("error in mutex lock");
-    }
-    currentTimeSlot = (currentTimeSlot + 1) % timerSize;
-    if(pthread_mutex_unlock(&posinwheelMTX) == -1)
-    {
-        perror("error in mutex unlock");
-    }
-}
+    mtxLock(&posinwheelMTX);
 
+    currentTimeSlot = (currentTimeSlot + 1) % timerSize;
+
+    mtxUnlock(&posinwheelMTX);
+}
 
 int getWheelPosition()
 {
-    if(pthread_mutex_lock(&posinwheelMTX) == -1)
-    {
-        perror("error in mutex lock");
-    }
+    mtxLock(&posinwheelMTX);
     int pos = (currentTimeSlot + offset)%timerSize;
-    if(pthread_mutex_unlock(&posinwheelMTX) == -1)
-    {
-        perror("error in mutex unlock");
-    }
+
+    mtxUnlock(&posinwheelMTX);
     //printf("timer will be set in position %d\n\n", pos);
     return(pos);
 }
@@ -274,8 +279,6 @@ void startTimer(int packetN, int posInWheel)
     //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
 
-
-
 void initTimerWheel()
 {
     printf("inizializzo ruota del timer\n");
@@ -288,11 +291,8 @@ void initTimerWheel()
 
 //----------------------------------------------------------------------------------------------------------------
 
-
-
-
-void retransmissionServer( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char * FN)
+/*
+void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char * FN)
 {
     int sequenceNumber,fd;
     ssize_t readByte;
@@ -338,7 +338,7 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
 
     int pos = getWheelPosition();
     startTimer(sequenceNumber, pos);
-    if (write(details->sockfd, (char *) &sndPacket, sizeof(datagram)) == -1) {
+    if (write(details.sockfd, (char *) &sndPacket, sizeof(datagram)) == -1) {
         perror("datagram send error");
     }
     if (close(fd) == -1) {
@@ -347,8 +347,7 @@ void retransmissionServer( int pipeRT, struct details * details, datagram * pack
 
 }
 
-void retransmissionClient( int pipeRT, struct details * details, datagram * packet,
-                           int firstPacket, char * FN)
+void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char * FN)
 {
 
     //per come stiamo strutturando adesso io credo che questo vada cambiato, la read sulla pipe dovrebbe già essere
@@ -381,7 +380,7 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
         sentPacket(sndPacket.seqNum, 1);
 
         printf("mando il paccetto ritrasmesso\n");
-        sendDatagram(details, packet);
+        sendDatagram(&details, packet);
 
     }
     else    //packet.command == 1 && firstpacket != 0
@@ -407,7 +406,7 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
         }
         sentPacket(sndPacket.seqNum, 1);
 
-        sendDatagram(details, &sndPacket);
+        sendDatagram(&details, &sndPacket);
 
         if (close(fd) == -1) {
             perror("0: error on close, retransmission");
@@ -415,6 +414,8 @@ void retransmissionClient( int pipeRT, struct details * details, datagram * pack
 
     }
 }
+
+ */
 
 int checkPipe(struct pipeMessage *rtxN)
 {
