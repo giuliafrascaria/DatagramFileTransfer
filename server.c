@@ -71,6 +71,18 @@ void * sendFunction()
     finishHandshake();
 
 
+    //---------------------------------------------------------------------scheletro di sincronizzazione listener sender
+    printf("mi metto in cond wait\n");
+
+    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+    {
+        perror("error in cond wait");
+    }
+
+    printf("sono dopo la seconda cond wait\n\n");
+
+    //-----------------------------------------------------------------------------------------------------------------
+
 }
 
 void finishHandshake()
@@ -93,6 +105,12 @@ void finishHandshake()
 void listenCycle()
 {
     printf("inizio il ciclo di ascolto\n");
+
+    //---------------------------------------------------------------------------------scheletro sincronizzazione thread
+    sleep(10);
+    printf("provo a svegliare il sender");
+    sendSignalThread(&condMTX, &secondConnectionCond);
+    //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
 

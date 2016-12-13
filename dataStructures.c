@@ -22,6 +22,8 @@ extern volatile int currentTimeSlot;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
+
+
 int offset = 10;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
