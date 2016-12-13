@@ -250,6 +250,9 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
+
+    sendBase = SYN_ACK.sequenceNum;
+
     SYN_ACK.ack = details.remoteSeq;
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 

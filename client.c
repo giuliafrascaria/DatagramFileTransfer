@@ -230,7 +230,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     ACK.windowsize = windowSize;
 
     sendACK(socketfd, &ACK, servAddr, servLen);
-    sentPacket(ACK.sequenceNum, 0);
+    //sentPacket(ACK.sequenceNum, 0);
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
 

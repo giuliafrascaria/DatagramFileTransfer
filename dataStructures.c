@@ -115,13 +115,20 @@ void sentPacket(int packetN, int retransmission)
 
 void ackSentPacket(int ackN)
 {
-    printf("ricevuto ack per il mio pacchetto inviato con numero di sequenza = %d\n\n\n", ackN);
+    printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n\n\n", ackN);
 
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
         printf("aggiorno la selective repeat\n");
         ((selectiveWnd)[ackN % windowSize]).value = 2;
+
+        //--------------------------------------------------------------------------------andrà protetto con un mutex--------------------
+
+        (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
+        printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
+
+        //-------------------------------------------------------------------------------------------------------------------------------
     }
 
     //printWindow();
@@ -152,6 +159,8 @@ void slideWindow()
         selectiveWnd[sendBase % windowSize].value = 0;
         sendBase = sendBase + 1;
     }
+    /*printf("finestra dopo scorrimento\n");
+    printWindow();*/
 }
 
 
@@ -216,18 +225,25 @@ void * timerFunction()
 
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
 
-            if (currentTimer != NULL)
+            while (currentTimer != NULL)
             {
-                printf("ho trovato un assert in posizione %d\n", currentTimeSlot);
+                //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
                 rtxN.seqNum = currentTimer->seqNum;
                 rtxN.isFinal = 0;
-                if(write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1)
+                if(currentTimer->isValid)
                 {
-                    perror("error in pipe write");
+
+                    if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
+                        perror("error in pipe write");
+                    }
                 }
+                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
+
+                currentTimer = currentTimer->nextTimer;
             }
+            printf("|_|\n");
 //            else
 //            {
 //                printf("cella vuota\n");
