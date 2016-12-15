@@ -83,6 +83,10 @@ void * sendFunction()
     printf("sono dopo la seconda cond wait\n\n");
 
     //-----------------------------------------------------------------------------------------------------------------
+    for(;;)
+    {
+
+    }
 
 }
 
@@ -116,11 +120,21 @@ void listenCycle()
     for(;;)
     {
         memset(&packet, 0, sizeof(datagram));
-        while(!checkSocketDatagram(&(details.addr), details.Size, details.sockfd, &packet))
+        int res = 0;
+        while(!res)
         {
-            usleep(1000);
-            //aggiorno il timer che mi farà il timeout a una certa
+            res = checkSocketDatagram(&(details.addr), details.Size, details.sockfd, &packet);
+            if(res == -1)
+            {
+                perror("error in socket read");
+            }
+            if(res == 0)
+            {
+                usleep(1000);
+            }
         }
+
+
         //arrivo qui quando ho ricevuto cose, chiamo una funzione tipo controllaComando() e sveglia il sender e il timer
     }
 }

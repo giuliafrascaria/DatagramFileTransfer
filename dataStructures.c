@@ -93,7 +93,7 @@ int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int so
 
     if((res == -1) && (errno != EAGAIN))
     {
-        perror("error in datagram rcv");
+        return -1;
     }
     else if(res > 0)
     {
@@ -114,6 +114,7 @@ void initWindow()
     for(i = 0; i < windowSize; i++)
     {
         selectiveWnd[i].value = 0;
+        (selectiveWnd[i].packetTimer).nextTimer = NULL;
     }
 
     printf("inizializzo ruota della selective\n");
@@ -312,7 +313,7 @@ void startTimer(int packetN, int posInWheel)
     else
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
-    //printf("setting timer in wheel position \n");
+    //printf("setting timer in wheel position %d\n", posInWheel);
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
     //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
@@ -554,12 +555,4 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
         perror("error in cond signal");
     }
     mtxUnlock(mtx);
-}
-
-void receiveDatagram(int socketfd, struct datagram_t * rcvPacket, struct sockaddr * address, socklen_t *slen)
-{
-    if(recvfrom(socketfd, rcvPacket, sizeof(struct datagram_t), 0, address, slen) == -1)
-    {
-        perror("error in receiving datagram");
-    }
 }

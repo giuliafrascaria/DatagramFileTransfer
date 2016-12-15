@@ -157,6 +157,10 @@ void * clientListenFunction()
 
     sleep(10);
     //return (EXIT_SUCCESS);
+    for(;;)
+    {
+
+    }
 }
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
