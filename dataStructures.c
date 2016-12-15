@@ -312,7 +312,7 @@ void startTimer(int packetN, int posInWheel)
     else
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
-    //printf("setting timer in wheel position %d\n", posInWheel);
+    //printf("setting timer in wheel position \n");
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
     //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
@@ -554,4 +554,12 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
         perror("error in cond signal");
     }
     mtxUnlock(mtx);
+}
+
+void receiveDatagram(int socketfd, struct datagram_t * rcvPacket, struct sockaddr * address, socklen_t *slen)
+{
+    if(recvfrom(socketfd, rcvPacket, sizeof(struct datagram_t), 0, address, slen) == -1)
+    {
+        perror("error in receiving datagram");
+    }
 }

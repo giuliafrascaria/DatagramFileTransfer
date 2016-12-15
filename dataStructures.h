@@ -133,6 +133,8 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
 
 void receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
 
+void receiveDatagram(int socketfd, struct datagram_t * rcvPacket, struct sockaddr * address, socklen_t *slen);
+
 int openFile(char * fileName);
 
 void closeFile(int fd);
