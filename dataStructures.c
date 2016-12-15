@@ -159,6 +159,7 @@ void ackSentPacket(int ackN)
 
         (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
         printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
+        printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
     }
@@ -257,12 +258,12 @@ void * timerFunction()
         //while (*TIMGB == 1)
         for (;;) {
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
-            printf("indirizzo rilevato dal timer : %p\n", currentTimer);
+
 
             while (currentTimer)
             {
                 //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
-
+                printf("indirizzo rilevato dal timer : %p\n", currentTimer);
 
                 rtxN.seqNum = currentTimer->seqNum;
                 rtxN.isFinal = 0;
@@ -273,7 +274,7 @@ void * timerFunction()
                         perror("error in pipe write");
                     }
                 }
-                printf("|%d, %d|\n", currentTimer->seqNum, currentTimer->isValid);
+                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
 
