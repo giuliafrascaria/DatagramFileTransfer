@@ -256,10 +256,10 @@ void * timerFunction()
 
         //while (*TIMGB == 1)
         for (;;) {
-
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
+            printf("indirizzo rilevato dal timer : %p\n", currentTimer);
 
-            while (currentTimer != NULL)
+            while (currentTimer)
             {
                 //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
 
@@ -273,17 +273,13 @@ void * timerFunction()
                         perror("error in pipe write");
                     }
                 }
-                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
+                printf("|%d, %d|\n", currentTimer->seqNum, currentTimer->isValid);
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
 
                 currentTimer = currentTimer->nextTimer;
             }
             printf("|_|\n");
-//            else
-//            {
-//                printf("cella vuota\n");
-//            }
 
             clockTick();
             usleep((useconds_t) nanoSleep);
@@ -314,7 +310,6 @@ int getWheelPosition()
 
 void startTimer(int packetN, int posInWheel)
 {
-
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).seqNum = packetN;
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).isValid = 1;
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).posInWheel = posInWheel;
@@ -326,9 +321,8 @@ void startTimer(int packetN, int posInWheel)
     else
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
-    //printf("setting timer in wheel position %d\n", posInWheel);
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
-    //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
+    printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
 }
 
 void initTimerWheel()

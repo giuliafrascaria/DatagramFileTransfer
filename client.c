@@ -172,7 +172,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 
     sendBase = SYN.sequenceNum;
 
-     // il prossimo seqnum utile
+    // il prossimo seqnum utile
     details.remoteSeq = SYN.sequenceNum;
 
     sendACK(socketfd, &SYN, servAddr, servLen);
@@ -237,30 +237,3 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     //sentPacket(ACK.sequenceNum, 0);
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

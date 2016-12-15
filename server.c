@@ -20,7 +20,7 @@ int pipeFd[2];
 volatile int currentTimeSlot;
 
 struct selectCell selectiveWnd[WINDOWSIZE];
-struct headTimer timerWheel[TIMERSIZE]  = {NULL};;
+struct headTimer timerWheel[TIMERSIZE] = {NULL};
 struct details details;
 
 pthread_t timerThread;
