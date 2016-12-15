@@ -115,6 +115,10 @@ void initWindow()
     {
         selectiveWnd[i].value = 0;
         (selectiveWnd[i].packetTimer).nextTimer = NULL;
+        if(pthread_mutex_init(&(selectiveWnd[i].cellMtx), NULL) != 0)
+        {
+            perror("mutex init error");
+        }
     }
 
     printf("inizializzo ruota della selective\n");
@@ -125,12 +129,16 @@ void sentPacket(int packetN, int retransmission)
 {
     if(retransmission == 0)
     {
+        mtxLock(&(selectiveWnd[packetN % windowSize]).cellMtx);
+
         (selectiveWnd[packetN % windowSize]).value = 1;
         ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
         //printf("updated selective repeat\n");
 
         int pos = getWheelPosition();
         startTimer(packetN, pos);
+
+        mtxUnlock(&(selectiveWnd[packetN % windowSize]).cellMtx);
 
         details.mySeq = packetN+1;
     }
@@ -140,6 +148,7 @@ void ackSentPacket(int ackN)
 {
     printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n\n\n", ackN);
 
+    mtxLock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
@@ -156,6 +165,8 @@ void ackSentPacket(int ackN)
 
     //printWindow();
     slideWindow();
+
+    mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 }
 
 void printWindow()
@@ -251,6 +262,8 @@ void * timerFunction()
             while (currentTimer != NULL)
             {
                 //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
+
+
                 rtxN.seqNum = currentTimer->seqNum;
                 rtxN.isFinal = 0;
                 if(currentTimer->isValid)

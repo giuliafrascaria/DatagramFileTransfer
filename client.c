@@ -18,7 +18,7 @@ int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
 volatile int currentTimeSlot;
-struct headTimer timerWheel[TIMERSIZE];
+struct headTimer timerWheel[TIMERSIZE] = {NULL};
 
 
 void clientSendFunction();

@@ -26,6 +26,7 @@ struct selectCell
 {
     int value;
     struct timer packetTimer;
+    pthread_mutex_t cellMtx;
 };
 
 typedef struct datagram_t
