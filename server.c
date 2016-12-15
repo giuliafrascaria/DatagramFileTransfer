@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <memory.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
@@ -108,12 +109,19 @@ void listenCycle()
 
     //---------------------------------------------------------------------------------scheletro sincronizzazione thread
     sleep(10);
-    printf("provo a svegliare il sender");
+    printf("provo a svegliare il sender\n");
     sendSignalThread(&condMTX, &secondConnectionCond);
+    datagram packet;
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
-
+        memset(&packet, 0, sizeof(datagram));
+        while(!checkSocketDatagram(&(details.addr), details.Size, details.sockfd, &packet))
+        {
+            usleep(1000);
+            //aggiorno il timer che mi farà il timeout a una certa
+        }
+        //arrivo qui quando ho ricevuto cose, chiamo una funzione tipo controllaComando() e sveglia il sender e il timer
     }
 }
 

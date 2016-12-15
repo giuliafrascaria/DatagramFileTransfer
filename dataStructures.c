@@ -85,6 +85,26 @@ int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketf
     }
 }
 
+
+int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
+{
+    ssize_t res;
+    res = recvfrom(socketfd, (char *) packet, sizeof(datagram), 0, (struct sockaddr *) servAddr, &servLen);
+
+    if((res == -1) && (errno != EAGAIN))
+    {
+        perror("error in datagram rcv");
+    }
+    else if(res > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow()

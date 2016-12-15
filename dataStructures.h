@@ -119,6 +119,8 @@ void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
 
 int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK);
 
+int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet);
+
 void mtxLock(pthread_mutex_t * mtx);
 
 void mtxUnlock(pthread_mutex_t * mtx);
