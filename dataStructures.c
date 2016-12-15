@@ -312,7 +312,7 @@ void startTimer(int packetN, int posInWheel)
     else
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
-    //printf("setting timer in wheel position %d\n", posInWheel);
+    printf("setting timer in wheel position %d\n", posInWheel);
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
     //selectiveWnd[(packetN)%(windowSize)].wheelTimer = packetTimer;
 }
