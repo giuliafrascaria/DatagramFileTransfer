@@ -4,12 +4,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <memory.h>
+#include <dirent.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -35,6 +38,7 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
+void ls(int tempFile);
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
@@ -327,4 +331,22 @@ void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl)
     sentPacket(SYN_ACK.sequenceNum, 0);
     printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
 
+}
+
+void ls(int tempFile)
+{
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (LSDIR)) != NULL)
+    {
+        while ((ent = readdir (dir)) != NULL) {
+            if((ent->d_name)[0] != '.')
+            {
+                dprintf(tempFile, "%s\n", ent->d_name);
+            }
+        }
+        closedir (dir);
+    }
+    else
+        perror ("errore nell'apertura della directory");
 }

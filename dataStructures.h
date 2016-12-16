@@ -85,6 +85,7 @@ void clockTick();
 
 
 //--------------------------------------------------------------------------------------------------------RETRANSMISSION
+
 /*
 void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char * FN);
 
@@ -132,9 +133,9 @@ void sendDatagram(struct details * details, struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
+int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
 
-void receiveDatagram(int socketfd, struct datagram_t * rcvPacket, struct sockaddr * address, socklen_t *slen);
+int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t *slen, int firstN, size_t finalLen);
 
 int openFile(char * fileName);
 
@@ -143,6 +144,12 @@ void closeFile(int fd);
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition);
+
+int checkWindowSendBase();
+
+void writeOnFile(int file, char * content, size_t len);
+
+void tellSenderSendACK(int packetN, short int isFinal);
 
 //----------------------------------------------------------------------------------------------------------------------
 
