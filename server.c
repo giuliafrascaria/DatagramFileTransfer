@@ -111,16 +111,13 @@ void listenCycle()
 {
     printf("inizio il ciclo di ascolto\n");
 
-    //---------------------------------------------------------------------------------scheletro sincronizzazione thread
-    sleep(10);
-    printf("provo a svegliare il sender\n");
-    sendSignalThread(&condMTX, &secondConnectionCond);
     datagram packet;
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
         memset(&packet, 0, sizeof(datagram));
         int res = 0;
+        int timeout = 0;
         while(!res)
         {
             res = checkSocketDatagram(&(details.addr), details.Size, details.sockfd, &packet);
@@ -128,9 +125,25 @@ void listenCycle()
             {
                 perror("error in socket read");
             }
-            if(res == 0)
+            else if(res == 0)
             {
-                usleep(1000);
+                if(usleep(1000000) == -1)
+                {
+                    perror("error on usleep");
+                }
+                timeout++;
+            }
+            else
+            {
+                printf("è arrivata una richiesta\n");
+                sendSignalThread(&condMTX, &secondConnectionCond);
+                timeout = 0;
+            }
+
+            if(timeout == 120000)
+            {
+                perror("timeout on server listen");
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -161,6 +174,7 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     details.remoteSeq = (message->sequenceNum);
 
     //mando il datagramma ancora senza connettermi
+
     sendSYNACK(privateSocket, socklen, cl);
     terminateConnection(privateSocket, &(cl->addr), socklen, cl);
 

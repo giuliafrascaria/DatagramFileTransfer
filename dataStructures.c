@@ -274,16 +274,20 @@ void * timerFunction()
                         perror("error in pipe write");
                     }
                 }
-                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
+                //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
 
                 currentTimer = currentTimer->nextTimer;
             }
-            printf("|_|\n");
+            //printf("|_|\n");
 
             clockTick();
-            usleep((useconds_t) nanoSleep);
+
+            if(usleep((useconds_t) nanoSleep) == -1)
+            {
+                perror("error on usleep");
+            }
 
         }
         exit(EXIT_SUCCESS);

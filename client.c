@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -31,7 +30,8 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-
+void listenCycle();
+int checkUserInput(char * buffer);
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -137,7 +137,6 @@ void * clientListenFunction()
 {
     printf("listener thread attivato\n\n");
 
-
     details.Size2 = sizeof(struct sockaddr_in);
     details.sockfd2 = createSocket();
 
@@ -146,20 +145,88 @@ void * clientListenFunction()
         perror("error in cond wait");
     }
 
-    printf("sono dopo la cond wait\n\n");
+    printf("inizio seconda connessione\n\n");
 
     sendSYN2(&(details.addr), details.Size, details.sockfd2);
-
     waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2);
-
     send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
 
+    listenCycle();
+}
 
-    sleep(10);
-    //return (EXIT_SUCCESS);
+void listenCycle()
+{
+    char * s = malloc(512);
+    int timeout = 0;
+    int res = 0;
+    if(s == NULL)
+    {
+        perror("error in malloc");
+    }
+
+    if (fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK) == -1)
+    {
+        perror("error in fcntl");
+    }
+
     for(;;)
     {
+        //dovrei ascoltare lo standard input
 
+        printf("insert command : \n");
+
+        while(!res)
+        {
+            res = checkUserInput(s);
+            if(res == -1)
+            {
+                perror("error in stdin read");
+            }
+            else if(res == 0)
+            {
+                if(usleep(1000000) == -1)
+                {
+                    perror("error on usleep");
+                }
+                timeout++;
+            }
+            else
+            {
+                printf("processing request\n");
+                //sendSignalThread(&condMTX, &secondConnectionCond);
+                timeout = 0;
+                for(;;)
+                {
+
+                }
+            }
+
+            if(timeout == 120000)
+            {
+                perror("timeout on input listen");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+    }
+}
+
+int checkUserInput(char * buffer)
+{
+    ssize_t res;
+    res = read(STDIN_FILENO, buffer, 512);
+
+    if((res == -1) && (errno != EAGAIN))
+    {
+        return -1;
+    }
+    else if(res > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }
 
@@ -224,7 +291,6 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         }
     }
 }
-
 
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN)
 {
