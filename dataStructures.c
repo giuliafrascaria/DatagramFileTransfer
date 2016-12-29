@@ -1,6 +1,3 @@
-//
-// Created by giogge on 09/12/16.
-//
 
 
 #include <stdio.h>
@@ -22,6 +19,7 @@ int pipeSendACK[2];
 extern volatile int currentTimeSlot;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
+
 
 int offset = 10;
 
@@ -490,9 +488,9 @@ int checkPipe(struct pipeMessage *rtxN)
     }
 }
 
-void sendDatagram(struct details * details, struct datagram_t * sndPacket)
+void sendDatagram(struct datagram_t * sndPacket)
 {
-    if (send(details->sockfd, (char *) sndPacket, sizeof(datagram), 0) == -1) {
+    if (send(details.sockfd, (char *) sndPacket, sizeof(datagram), 0) == -1) {
         perror("datagram send error");
     }
 }

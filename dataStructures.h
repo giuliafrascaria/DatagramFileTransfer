@@ -131,7 +131,7 @@ void mtxUnlock(pthread_mutex_t * mtx);
 
 //---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
 
-void sendDatagram(struct details * details, struct datagram_t * sndPacket);
+void sendDatagram(struct datagram_t * sndPacket);
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
 

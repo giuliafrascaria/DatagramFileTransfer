@@ -18,6 +18,7 @@ int sendBase;
 int pipeFd[2];
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
+datagram packet;
 
 
 void clientSendFunction();
@@ -33,6 +34,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 void listenCycle();
 int checkUserInput(char * buffer);
 void parseInput(char * s);
+void listListener();
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -56,7 +58,6 @@ int main()
 
 void clientSendFunction()
 {
-
     initPipe();
 
     initProcess();
@@ -66,6 +67,12 @@ void clientSendFunction()
 
     for(;;)
     {
+        pthread_cond_wait(&secondConnectionCond, &condMTX);
+
+        sendDatagram(&packet);
+
+        printf("\n\nsono il sender e sono stato svegliato\n\n");
+
         if(checkPipe(&rtxN))
         {
             printf("ho trovato un messaggio in pipe\n\n");
@@ -183,7 +190,7 @@ void listenCycle()
             }
             else if(res == 0)
             {
-                if(usleep(1000000) == -1)
+                if(usleep(100000) == -1)
                 {
                     perror("error on usleep");
                 }
@@ -215,6 +222,8 @@ void parseInput(char * s)
     if (strncmp(s,"list", 4) == 0)//---------------------------------------------------------------listener list command
     {
         printf("'list'\n");
+        listListener();
+
     }
     else if (strncmp(s, "push", 4) == 0)//---------------------------------------------------------listener push command
     {
@@ -238,6 +247,35 @@ void parseInput(char * s)
     }
 }
 
+void listListener()
+{
+    char listFilename[17];
+    int fdList;
+
+    memset(listFilename,0,17);
+
+    strcpy(listFilename, "lsTempXXXXXX");
+
+    fdList = mkstemp(listFilename);
+    while(fdList == -1)
+    {
+        perror("1: error in list tempfile open");
+        fdList = mkstemp(listFilename);
+    }
+
+    unlink(listFilename);
+
+    //---------------------proteggere con mutex
+    packet.command = 0;
+    packet.isFinal = 1;
+    int operationID = rand() % 2048;        //setting transaction number
+    packet.opID = operationID;
+    packet.seqNum = details.mySeq;
+    //-----------------------------------------
+
+    sendSignalThread(&condMTX, &secondConnectionCond);
+}
+
 int checkUserInput(char * buffer)
 {
     ssize_t res;
@@ -255,6 +293,8 @@ int checkUserInput(char * buffer)
         return 0;
     }
 }
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
