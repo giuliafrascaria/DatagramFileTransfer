@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 //------------------------------------------------------------------------------------------------------STRUTTURE DATI
+
 struct timer
 {
     volatile int seqNum;
@@ -72,6 +73,7 @@ struct pipeMessage
     int seqNum;
     short int isFinal;
 };
+
 //----------------------------------------------------------------------------------------------------------------TIMER
 
 void * timerFunction();

@@ -242,7 +242,6 @@ int checkUserInput(char * buffer)
 {
     ssize_t res;
     res = read(STDIN_FILENO, buffer, 512);
-
     if((res == -1) && (errno != EAGAIN))
     {
         return -1;

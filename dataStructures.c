@@ -23,8 +23,6 @@ extern volatile int currentTimeSlot;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
-
-
 int offset = 10;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
@@ -84,7 +82,6 @@ int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketf
         return 0;
     }
 }
-
 
 int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
 {
@@ -266,7 +263,7 @@ void * timerFunction()
 
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
-                rtxN.isFinal = 0;
+                //rtxN.isFinal = 0;
                 if(currentTimer->isValid)
                 {
 
@@ -550,18 +547,22 @@ int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t
 
     if(isFinal == 0)
     {
-        writeOnFile(file, packet->content, finalLen);
+        writeOnFile(file, packet->content, 512);
     }
     else
     {
-        writeOnFile(file, packet->content, 512);
+        writeOnFile(file, packet->content, finalLen);
     }
 
     if(packet->ackSeqNum != 0)
         ackSentPacket(packet->seqNum);
 
     tellSenderSendACK(packet->seqNum, (short) isFinal);
-    return isFinal;
+
+    if(isFinal == 0)
+        return isFinal;
+    else
+        return packet->seqNum;
 }
 
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
@@ -611,24 +612,19 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     }
     while(checkWindowSendBase() == 0)
     {
-
+        receiveACK(socket, address, slen);
     }
 }
 
-void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen, int Nmessages)
+void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
 {
-    int messagesReceived = 0, isFinal = 0;
+    int isFinal = 0, lastDatagram = -1;
     isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-    messagesReceived ++;
-    while(isFinal == 0)
+    while(isFinal == 0 || details.sendBase != lastDatagram)
     {
         isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-        messagesReceived ++;
-    }
-    while(messagesReceived < Nmessages)
-    {
-        receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-        messagesReceived ++;
+        if(isFinal != 0)
+            lastDatagram = isFinal;
     }
 }
 
