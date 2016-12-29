@@ -152,6 +152,7 @@ void * clientListenFunction()
     send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
 
     listenCycle();
+    return (EXIT_SUCCESS);
 }
 
 void listenCycle()
