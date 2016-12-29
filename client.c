@@ -32,7 +32,7 @@ void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void listenCycle();
 int checkUserInput(char * buffer);
-
+void parseInput(char * s);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -171,8 +171,6 @@ void listenCycle()
 
     for(;;)
     {
-        //dovrei ascoltare lo standard input
-
         printf("insert command : \n");
 
         while(!res)
@@ -193,12 +191,13 @@ void listenCycle()
             else
             {
                 printf("processing request\n");
+
+                parseInput(s);
                 //sendSignalThread(&condMTX, &secondConnectionCond);
                 timeout = 0;
-                for(;;)
-                {
-
-                }
+                //provvisorio
+                //poi mi devo mettere a sentire i dati ricevuti dalla socket
+                res = 0;
             }
 
             if(timeout == 120000)
@@ -207,7 +206,34 @@ void listenCycle()
                 exit(EXIT_FAILURE);
             }
         }
+    }
+}
 
+void parseInput(char * s)
+{
+    if (strncmp(s,"list", 4) == 0)//---------------------------------------------------------------listener list command
+    {
+        printf("'list'\n");
+    }
+    else if (strncmp(s, "push", 4) == 0)//---------------------------------------------------------listener push command
+    {
+        printf("'push'\n");
+    }
+    else if (strncmp(s, "pull", 4) == 0)//---------------------------------------------------------listener pull command
+    {
+        printf("'pull'\n");
+    }
+    else if (strncmp(s, "quit", 4) == 0)//---------------------------------------------------------listener quit command
+    {
+        printf("quit'\n");
+    }
+    else if (strncmp(s, "help", 4) == 0)//---------------------------------------------------------listener help command
+    {
+        printf("'help\n");
+    }
+    else
+    {
+        printf("command does not exist, enter 'list', 'push', 'pull', 'help' or 'exit'\n");
     }
 }
 

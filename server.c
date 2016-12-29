@@ -146,8 +146,6 @@ void listenCycle()
                 exit(EXIT_FAILURE);
             }
         }
-
-
         //arrivo qui quando ho ricevuto cose, chiamo una funzione tipo controllaComando() e sveglia il sender e il timer
     }
 }

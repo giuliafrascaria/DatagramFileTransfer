@@ -260,12 +260,15 @@ void * timerFunction()
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
 
 
-            while (currentTimer)
+            while (currentTimer != NULL)
             {
                 //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
-                printf("indirizzo rilevato dal timer : %p\n", currentTimer);
+                //printf("indirizzo rilevato dal timer : %p\n", currentTimer);
 
                 rtxN.seqNum = currentTimer->seqNum;
+
+                mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
+
                 rtxN.isFinal = 0;
                 if(currentTimer->isValid)
                 {
@@ -274,7 +277,10 @@ void * timerFunction()
                         perror("error in pipe write");
                     }
                 }
+
                 //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
+                currentTimer->isValid = 0;
+                mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
 
