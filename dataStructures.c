@@ -490,7 +490,7 @@ int checkPipe(struct pipeMessage *rtxN)
 
 void sendDatagram(struct datagram_t * sndPacket)
 {
-    if (send(details.sockfd, (char *) sndPacket, sizeof(datagram), 0) == -1) {
+    if (sendto(details.sockfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) &details.addr, details.Size)== -1) {
         perror("datagram send error");
     }
 }

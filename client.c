@@ -75,9 +75,9 @@ void clientSendFunction()
         }
 
         printf("\n\nsono il sender e sono stato svegliato\n\n");
+
         sendDatagram(&packet);
 
-        printf("\n\nsono il sender e sono stato svegliato\n\n");
 
         if(checkPipe(&rtxN))
         {
