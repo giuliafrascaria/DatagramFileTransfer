@@ -43,7 +43,9 @@ pthread_t listenThread, timerThread;
 struct selectCell selectiveWnd[WINDOWSIZE];
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -67,8 +69,12 @@ void clientSendFunction()
 
     for(;;)
     {
-        pthread_cond_wait(&secondConnectionCond, &condMTX);
+        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
+        {
+            perror("error in sender cond wait");
+        }
 
+        printf("\n\nsono il sender e sono stato svegliato\n\n");
         sendDatagram(&packet);
 
         printf("\n\nsono il sender e sono stato svegliato\n\n");
@@ -273,7 +279,7 @@ void listListener()
     packet.seqNum = details.mySeq;
     //-----------------------------------------
 
-    sendSignalThread(&condMTX, &secondConnectionCond);
+    sendSignalThread(&condMTX2, &senderCond);
 }
 
 int checkUserInput(char * buffer)
