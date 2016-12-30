@@ -279,6 +279,7 @@ void listListener()
     sendSignalThread(&condMTX2, &senderCond);
 
     //aspetto datagrammi
+    getResponse(details.sockfd2, &(details.addr2), &(details.Size2));
 }
 
 void pushListener()

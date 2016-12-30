@@ -157,6 +157,8 @@ datagram * rebuildDatagram(struct pipeMessage pm);
 
 void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen);
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

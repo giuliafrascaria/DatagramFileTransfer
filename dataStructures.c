@@ -504,6 +504,31 @@ void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen
     }
 }
 
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen)
+{
+    int isFinal = 0;
+    datagram packet;
+    while(isFinal != -1)
+    {
+        if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
+        {
+            isFinal = packet.isFinal;
+
+            //devo restare qua dentro finchè non ho ricevuto tutti i pacchetti fino a quello finale
+            //visto che in mezzo se ne possono perdere, non devo uscire finchè una recvbase
+            //non è uguale al numero di sequenza finale, recv base è il più grande seqnum mandato senza buchi
+
+            //il sender remoto manda un pacchetto con isFInal -1 dopo che ha ricevuto tutti gli ack dei suoi pacchetti
+            //lo setta comunque a 1 quando è opportuno
+
+            ackSentPacket(packet.ackSeqNum);
+            tellSenderSendACK(packet.seqNum, packet.isFinal);
+            memset(&packet, 0, sizeof(datagram));
+        }
+        //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
+    }
+}
+
 int checkWindowSendBase()
 {
     for(int i = 0; i < windowSize; i++)

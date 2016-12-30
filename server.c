@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -20,6 +20,7 @@ int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
+datagram packet;
 
 volatile int currentTimeSlot;
 
@@ -32,6 +33,9 @@ pthread_t senderThread;
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
+
+pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
 void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
@@ -65,30 +69,60 @@ void * sendFunction()
 {
 
     printf("sender thread attivato\n\n");
-
     if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
     {
         perror("error in cond wait");
     }
-
     printf("sono dopo la cond wait\n\n");
-
     startSecondConnection(&details, details.sockfd2);
-
     finishHandshake();
-
 
     //---------------------------------------------------------------------scheletro di sincronizzazione listener sender
     printf("mi metto in cond wait\n");
-
-    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+    if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
     {
         perror("error in cond wait");
     }
-
-    printf("sono dopo la seconda cond wait\n\n");
+    printf("sono dopo la seconda cond wait, giunse un pacchetto con comando %d\n\n", packet.command);
 
     //-----------------------------------------------------------------------------------------------------------------
+    if(packet.command == 0)
+    {
+        printf("sono il sender del server, sto per fare la list\n");
+
+        char listFilename[17];
+        memset(listFilename,0,17);
+        strcpy(listFilename, "lsTempXXXXXX");
+
+        int fd = mkstemp(listFilename);
+        while(fd == -1)
+        {
+            perror("1: error in list tempfile open");
+            fd = mkstemp(listFilename);
+
+        }
+        unlink(listFilename);
+        ls(fd);
+
+        int isFinal = 0;
+        datagram sndPacket;
+        while(isFinal == 0) {
+            memset(sndPacket.content, 0, 512); //È IMPORTANTE, NON ELIMINARE QUESTA RIGA
+            ssize_t readByte = read(fd, sndPacket.content, 512);
+            if (readByte < 512 && readByte >= 0) {
+                isFinal = 1;
+                sndPacket.isFinal = 1;
+                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d\n", (int) readByte);
+            }
+            else{
+                sndPacket.isFinal = 0;
+            }
+            sndPacket.ackSeqNum = packet.seqNum;
+            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+            printf("ho inviato un pacchetto ackando %u\n", packet.seqNum);
+        }
+    }
+
     for(;;)
     {
 
@@ -117,7 +151,7 @@ void listenCycle()
 {
     printf("inizio il ciclo di ascolto\n");
 
-    datagram packet;
+    //datagram packet;
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
@@ -142,7 +176,14 @@ void listenCycle()
             else
             {
                 printf("è arrivata una richiesta\n");
-                sendSignalThread(&condMTX, &secondConnectionCond);
+                printf("numero di sequenza ricevuto = %u\n", packet.seqNum);
+                sendSignalThread(&condMTX2, &senderCond);
+
+                if(packet.command == 0)
+                {
+                    //wait for datagram or ack blabla
+                }
+
                 timeout = 0;
             }
 
