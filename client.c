@@ -16,6 +16,7 @@ int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
+int pipeSendACK[2];
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
@@ -60,7 +61,8 @@ int main()
 
 void clientSendFunction()
 {
-    initPipe();
+    initPipe(pipeFd);
+    initPipe(pipeSendACK);
 
     initProcess();
 
@@ -280,6 +282,18 @@ void listListener()
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);
+
+    //aspetto datagrammi
+}
+
+void pushListener()
+{
+    //aspetto ack
+}
+
+void pullListener()
+{
+    //aspetto datagrammi
 }
 
 int checkUserInput(char * buffer)

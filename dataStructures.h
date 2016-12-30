@@ -111,7 +111,7 @@ void slideWindow();
 
 void createThread(pthread_t * thread, void * function, void * arguments);
 
-void initPipe();
+void initPipe(int pipefd[2]);
 
 //---------------------------------------------------------------------------------------------------------CREATE SOCKET
 

@@ -15,7 +15,7 @@ extern struct headTimer timerWheel[];
 extern struct details details;
 extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
-int pipeSendACK[2];
+extern int pipeSendACK[2];
 extern volatile int currentTimeSlot;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
@@ -205,14 +205,14 @@ void createThread(pthread_t * thread, void * function, void * arguments)
     //printf("thread creato\n");
 }
 
-void initPipe()
+void initPipe(int pipefd[2])
 {
-    if(pipe(pipeFd) == -1)
+    if(pipe(pipefd) == -1)
     {
         perror("error in pipe open");
     }
 
-    if (fcntl(pipeFd[0], F_SETFL, O_NONBLOCK) == -1)
+    if (fcntl(pipefd[0], F_SETFL, O_NONBLOCK) == -1)
     {
         perror("error in fcntl");
     }
@@ -338,134 +338,6 @@ void initTimerWheel()
     //printf("inizializzazione terminata\n\n");
 }
 
-//----------------------------------------------------------------------------------------------------------------
-
-/*
-void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char * FN)
-{
-    int sequenceNumber,fd;
-    ssize_t readByte;
-    datagram sndPacket;
-
-
-
-    //stessa cosa di retransmission client
-    //-----------------------------------------------------------------------------------------------------------------------------------
-
-    while (read(pipeRT, &sequenceNumber, sizeof(int)) == -1) {
-        perror("1: error in read pipe");
-        sleep(1);
-    }
-
-    //------------------------------------------------------------------------------------------------------------------------------------
-
-
-    sndPacket.seqNum = sequenceNumber;
-    sndPacket.opID = packet->opID;
-    sndPacket.isFinal = 0;
-    sndPacket.command = packet->command;
-
-    fd = open(FN, O_RDONLY);
-    while (fd == -1) {
-        perror("1: error on open file, retransmission");
-        sleep(1);
-        fd = open(FN, O_RDONLY);
-    }
-    while (lseek(fd, (sequenceNumber - firstPacket) * 512, SEEK_SET) == -1) {
-        perror("1: lseek error");
-        sleep(1);
-    }
-    readByte = read(fd, sndPacket.content, 512);
-    while (readByte == -1) {
-        perror("1: error in read");
-        readByte = read(fd, sndPacket.content, 512);
-    }
-    if (readByte < 512 && readByte >= 0) {
-        sndPacket.isFinal = 1;
-        printf("sto ritrasmettendo il pacchetto finale\n");
-    }
-
-    int pos = getWheelPosition();
-    startTimer(sequenceNumber, pos);
-    if (write(details.sockfd, (char *) &sndPacket, sizeof(datagram)) == -1) {
-        perror("datagram send error");
-    }
-    if (close(fd) == -1) {
-        perror("0: error on close, retransmission");
-    }
-
-}
-
-void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char * FN)
-{
-
-    //per come stiamo strutturando adesso io credo che questo vada cambiato, la read sulla pipe dovrebbe già essere
-    //avvenuta, qui si passa il pipeMessage e questo manda solo il paccheto ricostruito
-
-    int sequenceNumber, fd;
-    ssize_t readByte;
-    struct timer *packetTimer = malloc(sizeof(struct timer));
-    datagram sndPacket;
-
-
-
-    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    //----------------------------------------------------------------ERRORE----------------------------------------------------------------------
-
-    //non legge un intero dalla pipe, così va in segmentation fault. legge un pipeMessage
-    while (read(pipeRT, &sequenceNumber, sizeof(int)) == -1) {
-        perror("1: error in read pipe");
-        sleep(1);
-    }
-    //--------------------------------------------------------------------------------------------------------------------------------------------
-    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
-    packetTimer->seqNum = sequenceNumber;
-    if (packet->command == 0 || packet->command == 2 || (packet->command == 1 && sequenceNumber == firstPacket))
-    {
-        sentPacket(sndPacket.seqNum, 1);
-
-        printf("mando il paccetto ritrasmesso\n");
-        sendDatagram(&details, packet);
-
-    }
-    else    //packet.command == 1 && firstpacket != 0
-    {
-
-        sndPacket.seqNum = sequenceNumber;
-        sndPacket.opID = packet->opID;
-        printf("RETRANSMISSION : ritrasmetto pacchetto con numero di sequenza %d\n", sndPacket.seqNum);
-
-        fd = openFile(FN);
-
-        while (lseek(fd, (sequenceNumber - firstPacket) * 512, SEEK_SET) == -1) {
-            perror("1: lseek error");
-            sleep(1);
-        }
-        readByte = read(fd, sndPacket.content, 512);
-        while (readByte == -1) {
-            perror("1: error in read");
-            readByte = read(fd, sndPacket.content, 512);
-        }
-        if (readByte < 512 && readByte >= 0) {
-            sndPacket.isFinal = 1;
-        }
-        sentPacket(sndPacket.seqNum, 1);
-
-        sendDatagram(&details, &sndPacket);
-
-        if (close(fd) == -1) {
-            perror("0: error on close, retransmission");
-        }
-
-    }
-}
-
- */
-
 int checkPipe(struct pipeMessage *rtxN)
 {
     if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1)
@@ -490,6 +362,8 @@ int checkPipe(struct pipeMessage *rtxN)
 
 void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket)
 {
+    sentPacket(sndPacket->seqNum, 0);
+
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
     }
@@ -617,7 +491,9 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
 void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
 {
     int isFinal = 0, lastDatagram = -1;
+
     isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
+
     while(isFinal == 0 || details.sendBase != lastDatagram)
     {
         isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
@@ -688,3 +564,4 @@ void sendACKcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
         }
     }
 }
+

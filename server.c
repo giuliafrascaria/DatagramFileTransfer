@@ -19,6 +19,7 @@ int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
+int pipeSendACK[2];
 
 volatile int currentTimeSlot;
 
@@ -47,7 +48,8 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));
 
-    initPipe();
+    initPipe(pipeFd);
+    initPipe(pipeSendACK);
 
     createThread(&timerThread, timerFunction, NULL);
     createThread(&senderThread, sendFunction, NULL);
