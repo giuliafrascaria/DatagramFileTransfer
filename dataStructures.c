@@ -488,9 +488,9 @@ int checkPipe(struct pipeMessage *rtxN)
     }
 }
 
-void sendDatagram(struct datagram_t * sndPacket)
+void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket)
 {
-    if (sendto(details.sockfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) &details.addr, details.Size)== -1) {
+    if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
     }
 }

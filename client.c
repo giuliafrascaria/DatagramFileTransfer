@@ -76,7 +76,7 @@ void clientSendFunction()
 
         printf("\n\nsono il sender e sono stato svegliato\n\n");
 
-        sendDatagram(&packet);
+        sendDatagram(details.sockfd , &details.addr, details.Size, &packet);
 
 
         if(checkPipe(&rtxN))
