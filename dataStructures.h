@@ -94,7 +94,7 @@ void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char 
 void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char * FN);
 */
 
-int checkPipe(struct pipeMessage *rtxN);
+int checkPipe(struct pipeMessage *rtxN, int pipefd);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow();
@@ -152,6 +152,10 @@ int checkWindowSendBase();
 void writeOnFile(int file, char * content, size_t len);
 
 void tellSenderSendACK(int packetN, short int isFinal);
+
+datagram * rebuildDatagram(struct pipeMessage pm);
+
+void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
 //----------------------------------------------------------------------------------------------------------------------
 

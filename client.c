@@ -80,11 +80,7 @@ void clientSendFunction()
 
         sendDatagram(details.sockfd , &details.addr, details.Size, &packet);
 
-
-        if(checkPipe(&rtxN))
-        {
-            printf("ho trovato un messaggio in pipe\n\n");
-        }
+        ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
     }
 }
 
@@ -276,8 +272,7 @@ void listListener()
     //---------------------proteggere con mutex
     packet.command = 0;
     packet.isFinal = 1;
-    int operationID = rand() % 2048;        //setting transaction number
-    packet.opID = operationID;
+    packet.opID =  rand() % 2048;
     packet.seqNum = details.mySeq;
     //-----------------------------------------
 
@@ -356,7 +351,7 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
     struct pipeMessage rtxN;
     for(;;)
     {
-        if(checkPipe(&rtxN))
+        if(checkPipe(&rtxN, pipeFd[0]))
         {
             printf("devo ritrasmettere\n");
             return 0;

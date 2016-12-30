@@ -246,7 +246,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
     int sockResult;
     for(;;)
     {
-        if(checkPipe(&rtxN))
+        if(checkPipe(&rtxN, pipeFd[0]))
         {
             printf("devo ritrasmettere\n");
             return 0;
@@ -283,7 +283,7 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
     int sockResult;
     for(;;)
     {
-        if(checkPipe(&rtxN))
+        if(checkPipe(&rtxN, pipeFd[0]))
         {
             printf("devo ritrasmettere\n");
             return 0;

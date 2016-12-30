@@ -338,9 +338,9 @@ void initTimerWheel()
     //printf("inizializzazione terminata\n\n");
 }
 
-int checkPipe(struct pipeMessage *rtxN)
+int checkPipe(struct pipeMessage *rtxN, int pipefd)
 {
-    if(read(pipeFd[0], rtxN, sizeof(struct pipeMessage)) == -1)
+    if(read(pipefd, rtxN, sizeof(struct pipeMessage)) == -1)
     {
         if(errno != EAGAIN)
         {
@@ -402,39 +402,43 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 
 int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t *slen, int firstN, size_t finalLen)
 {
-    datagram * packet = malloc(sizeof(datagram));
+    char *buffer = malloc(sizeof(datagram));
+    datagram *packet;
+    //datagram * pointer = &packet;
 
-    if(packet == NULL)
+    if (buffer == NULL)
         perror("error in datagram malloc");
 
-    ssize_t msgLen = recvfrom(socketfd, (char *) packet, sizeof(datagram), 0, address, slen);
-    if(msgLen == -1)
+    ssize_t msgLen = recvfrom(socketfd, buffer, sizeof(buffer), 0, address, slen);
+    if (msgLen == -1)
         perror("error in recvfrom");
 
-    int isFinal = packet->isFinal;
-    int offset = packet->seqNum - firstN;
+    if (msgLen != sizeof(handshake)) {
+        packet = (datagram *) buffer;
 
-    if(lseek(file, offset*512, SEEK_SET) == -1)
-        perror("lseek error");
+        int isFinal = packet->isFinal;
+        int offset = packet->seqNum - firstN;
 
-    if(isFinal == 0)
-    {
-        writeOnFile(file, packet->content, 512);
+        if (lseek(file, offset * 512, SEEK_SET) == -1)
+            perror("lseek error");
+
+        if (isFinal == 0) {
+            writeOnFile(file, packet->content, 512);
+        } else {
+            writeOnFile(file, packet->content, finalLen);
+        }
+        if (packet->ackSeqNum != 0)
+            ackSentPacket(packet->seqNum);
+
+        tellSenderSendACK(packet->seqNum, (short) isFinal);
+
+        if (isFinal == 0)
+            return isFinal;
+        else
+            return packet->seqNum;
     }
     else
-    {
-        writeOnFile(file, packet->content, finalLen);
-    }
-
-    if(packet->ackSeqNum != 0)
-        ackSentPacket(packet->seqNum);
-
-    tellSenderSendACK(packet->seqNum, (short) isFinal);
-
-    if(isFinal == 0)
-        return isFinal;
-    else
-        return packet->seqNum;
+        return 0;
 }
 
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
@@ -491,9 +495,7 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
 void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
 {
     int isFinal = 0, lastDatagram = -1;
-
     isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-
     while(isFinal == 0 || details.sendBase != lastDatagram)
     {
         isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
@@ -537,31 +539,51 @@ void tellSenderSendACK(int packetN, short int isFinal)
     }
 }
 
-void sendACKcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
+void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
-    int isFinal = 0;
+    int finish = 0;
     struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
     if(pm == NULL)
         perror("error in malloc");
 
     handshake * ACK ;
-
-    while(isFinal == 0)
+    while(finish != -1)
     {
-        if(read(pipeSendACK[0], pm, sizeof(struct pipeMessage)) == -1)
-            perror("error in read");
-
-        isFinal = pm->isFinal;
-
-        ACK = malloc(sizeof(handshake));
-        if(ACK == NULL)
-            perror("error in malloc");
-        else
+        if (checkPipe(pm, pipeSendACK[0]) == 1)
         {
-            ACK->isFinal = (short) isFinal;
-            ACK->sequenceNum = pm->seqNum;
-            sendACK(socketfd, ACK, servAddr, servLen);
+            ACK = malloc(sizeof(handshake));
+            if (ACK == NULL)
+                perror("error in malloc");
+            else
+            {
+                finish = pm->seqNum;
+                ACK->isFinal = pm->isFinal;
+                ACK->sequenceNum = pm->seqNum;
+                sendACK(socketfd, ACK, servAddr, servLen);
+            }
+            memset(pm, 0, sizeof(struct pipeMessage));
+        }
+        if (checkPipe(pm, pipeFd[0]) == 1)
+        {
+            datagram * packetRTX = rebuildDatagram(*pm);
+            sendDatagram(socketfd, servAddr, servLen, packetRTX);
+            memset(pm, 0, sizeof(struct pipeMessage));
+            printf("\n\nritrasmetto\n");
         }
     }
+}
+
+datagram * rebuildDatagram(struct pipeMessage pm)
+{
+    datagram *packet = malloc(sizeof(datagram));
+    if (packet == NULL) {
+        perror("error in malloc");
+    } else {
+        packet->seqNum = pm.seqNum;
+        packet->isFinal = pm.isFinal;
+        packet->ackSeqNum = 000000000000000000000000;
+        packet->opID = 000000000000000000000000;
+    }
+    return packet;
 }
 
