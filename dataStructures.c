@@ -529,6 +529,8 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen)
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
+
+    printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
 }
 
 int checkWindowSendBase()
@@ -579,10 +581,12 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
         if (checkPipe(pm, pipeSendACK[0]) == 1)
         {
             ACK = malloc(sizeof(handshake));
+
             if (ACK == NULL)
                 perror("error in malloc");
             else
             {
+                printf("devo mandare un ack\n\n");
                 finish = pm->seqNum;
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;
