@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -163,7 +163,7 @@ void listenCycle()
             }
             else if(res == 0)
             {
-                if(usleep(1000000) == -1)
+                if(usleep(100000) == -1)
                 {
                     perror("error on usleep");
                 }
@@ -179,6 +179,7 @@ void listenCycle()
                 if(packet.command == 0)
                 {
                     //wait for datagram or ack blabla
+                    wait
                 }
 
                 timeout = 0;
@@ -399,7 +400,6 @@ int ls()
                 dprintf(fd, "%s\n", ent->d_name);
             }
         }
-        printf("avvenuta ls\n");
         closedir (dir);
     }
     else
@@ -415,7 +415,6 @@ void lsSendCycle()
 
     int fd = ls();
 
-    //int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
     int seqnum = details.mySeq;
     int finalSeq = -1;
     int isFinal = 0;
@@ -449,7 +448,6 @@ void lsSendCycle()
                     isFinal = 1;
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
                 }
-                //sndPacket.ackSeqNum = packet.seqNum;
                 sndPacket.isFinal = (short) isFinal;
                 sndPacket.ackSeqNum = globalSeqNum;
                 sndPacket.seqNum = seqnum;
@@ -466,5 +464,8 @@ void lsSendCycle()
             }
         }
     }
-    printf("\n\n\n\n\n\t\tFINE\n\n\n\n");
+    memset(sndPacket.content, 0, 512);
+    sndPacket.isFinal = -1;
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
