@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -392,12 +392,14 @@ int ls()
     struct dirent *ent;
     if ((dir = opendir (LSDIR)) != NULL)
     {
-        while ((ent = readdir (dir)) != NULL) {
+        while ((ent = readdir (dir)) != NULL)
+        {
             if((ent->d_name)[0] != '.')
             {
                 dprintf(fd, "%s\n", ent->d_name);
             }
         }
+        printf("avvenuta ls\n");
         closedir (dir);
     }
     else
@@ -407,32 +409,42 @@ int ls()
     return fd;
 }
 
-void lsSendCycle(){
+void lsSendCycle()
+{
     printf("sono il sender del server, sto per fare la list\n");
 
     int fd = ls();
 
-    int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
+    //int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
+    int seqnum = details.mySeq;
     int finalSeq = -1;
     int isFinal = 0;
     datagram sndPacket;
     struct pipeMessage rtx;
-    while(details.sendBase != finalSeq || isFinal == 0) {
-        while(seqnum%WINDOWSIZE - details.sendBase > 256){
-            if(checkPipe(&rtx, pipeFd[0]) != 0){
+    while(details.sendBase != finalSeq || isFinal == 0)
+    {
+        while(seqnum%WINDOWSIZE - details.sendBase > 256)
+        {
+            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            {
                 printf("ritrasmetti\n");
             }
         }
-        if (isFinal == 1){
-            if(checkPipe(&rtx, pipeFd[0]) != 0){
-                printf("ritrasmetti\n");
+        if (isFinal == 1)
+        {
+            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            {
+                printf("ciao giogge! \n\nritrasmetti\n");
             }
         }
-        else {
-            if (checkPipe(&rtx, pipeFd[0]) == 0) {
+        else
+        {
+            if (checkPipe(&rtx, pipeFd[0]) == 0)
+            {
                 memset(sndPacket.content, 0, 512);
                 ssize_t readByte = read(fd, sndPacket.content, 512);
-                if (readByte < 512 && readByte >= 0) {
+                if (readByte < 512 && readByte >= 0)
+                {
                     finalSeq = seqnum;
                     isFinal = 1;
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
@@ -442,12 +454,17 @@ void lsSendCycle(){
                 sndPacket.ackSeqNum = globalSeqNum;
                 sndPacket.seqNum = seqnum;
                 sndPacket.opID = globalOpID;
-                seqnum++;
                 printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
-            } else {
+
+                seqnum = details.mySeq;
+
+            }
+            else
+            {
                 printf("ritrasmetti\n");
             }
         }
     }
+    printf("\n\n\n\n\n\t\tFINE\n\n\n\n");
 }

@@ -456,7 +456,6 @@ int openFile(char * fileName)
     int fd = open(fileName, O_RDONLY);
     while (fd == -1) {
         perror("1: error on open file, retransmission");
-        sleep(1);
         fd = open(fileName, O_RDONLY);
     }
     return fd;
