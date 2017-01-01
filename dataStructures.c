@@ -391,10 +391,12 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
         perror("error in malloc");
     }
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
-    if(msgLen == -1)
+    if(msgLen == -1 && errno != EAGAIN)
     {
         perror("error in recvfrom");
     }
+    else
+        return 0;
     ackSentPacket(ACK->sequenceNum);
     isFinal = ACK->isFinal;
     free(ACK);
@@ -482,7 +484,7 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
 {
-    while(receiveACK(socket, address, slen) == 0)
+    while(receiveACK(socket, address, slen) != -1)
     {
 
     }

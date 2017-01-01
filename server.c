@@ -179,7 +179,7 @@ void listenCycle()
                 if(packet.command == 0)
                 {
                     //wait for datagram or ack blabla
-                    wait
+                    waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
                 }
 
                 timeout = 0;

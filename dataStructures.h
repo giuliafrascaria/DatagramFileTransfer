@@ -159,6 +159,8 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen);
 
+void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H
