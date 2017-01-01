@@ -414,34 +414,40 @@ void lsSendCycle(){
 
     int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
     int finalSeq = -1;
+    int isFinal = 0;
     datagram sndPacket;
     struct pipeMessage rtx;
-    while(details.sendBase != finalSeq) {
+    while(details.sendBase != finalSeq || isFinal == 0) {
         while(seqnum%WINDOWSIZE - details.sendBase > 256){
             if(checkPipe(&rtx, pipeFd[0]) != 0){
                 printf("ritrasmetti\n");
             }
         }
-        if (checkPipe(&rtx, pipeFd[0]) == 0) {
-            memset(sndPacket.content, 0, 512);
-            ssize_t readByte = read(fd, sndPacket.content, 512);
-            if (readByte < 512 && readByte >= 0) {
-                finalSeq = seqnum;
-                sndPacket.isFinal = 1;
-                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
-            } else {
-                sndPacket.isFinal = 0;
+        if (isFinal == 1){
+            if(checkPipe(&rtx, pipeFd[0]) != 0){
+                printf("ritrasmetti\n");
             }
-            //sndPacket.ackSeqNum = packet.seqNum;
-            sndPacket.ackSeqNum = globalSeqNum;
-            sndPacket.seqNum = seqnum;
-            sndPacket.opID = globalOpID;
-            seqnum++;
-            printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
-            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
         }
-        else{
-            printf("ritrasmetti\n");
+        else {
+            if (checkPipe(&rtx, pipeFd[0]) == 0) {
+                memset(sndPacket.content, 0, 512);
+                ssize_t readByte = read(fd, sndPacket.content, 512);
+                if (readByte < 512 && readByte >= 0) {
+                    finalSeq = seqnum;
+                    isFinal = 1;
+                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                }
+                //sndPacket.ackSeqNum = packet.seqNum;
+                sndPacket.isFinal = (short) isFinal;
+                sndPacket.ackSeqNum = globalSeqNum;
+                sndPacket.seqNum = seqnum;
+                sndPacket.opID = globalOpID;
+                seqnum++;
+                printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+            } else {
+                printf("ritrasmetti\n");
+            }
         }
     }
 }
