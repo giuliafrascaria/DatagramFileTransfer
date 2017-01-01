@@ -355,7 +355,6 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
     else
     {
         printf("\n\nho trovato un rtxN\n\n");
-        memset(rtxN, 0, sizeof(struct pipeMessage));
         return 1;
     }
 }
@@ -379,34 +378,38 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         perror("error in sending data\n");
         exit(EXIT_FAILURE);
     }
-    //printf("sent ACK number %d\n", ACK->sequenceNum);
+    printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 {
-    int isFinal;
+    int isFinal = 0;
     handshake *ACK = malloc(sizeof(handshake));
     if(ACK == NULL)
     {
         perror("error in malloc");
     }
+
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
     if(msgLen == -1 && errno != EAGAIN)
     {
         perror("error in recvfrom");
     }
-    else
+    else if(msgLen == -1 && errno == EAGAIN)
         return 0;
-    ackSentPacket(ACK->sequenceNum);
-    isFinal = ACK->isFinal;
-    free(ACK);
+    else {
+
+        printf("ricevuto ack\n");
+        ackSentPacket(ACK->sequenceNum);
+        isFinal = ACK->isFinal;
+        free(ACK);
+    }
     return isFinal;
 }
 
 int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t *slen, int firstN, size_t finalLen)
 {
     char *buffer = malloc(sizeof(datagram));
-    datagram *packet;
     //datagram * pointer = &packet;
 
     if (buffer == NULL)
@@ -417,6 +420,7 @@ int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t
         perror("error in recvfrom");
 
     if (msgLen != sizeof(handshake)) {
+        datagram *packet;
         packet = (datagram *) buffer;
 
         int isFinal = packet->isFinal;
@@ -440,8 +444,13 @@ int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t
         else
             return packet->seqNum;
     }
-    else
-        return 0;
+    else {
+        handshake *ACK = (handshake *) buffer;
+        printf("ricevuto ack\n");
+        ackSentPacket(ACK->sequenceNum);
+        free(ACK);
+        return ACK->isFinal;
+    }
 }
 
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
@@ -487,10 +496,6 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     while(receiveACK(socket, address, slen) != -1)
     {
 
-    }
-    while(checkWindowSendBase() == 0)
-    {
-        receiveACK(socket, address, slen);
     }
 }
 
@@ -586,10 +591,10 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 perror("error in malloc");
             else
             {
-                printf("devo mandare un ack\n\n");
+                printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
                 finish = pm->seqNum;
                 ACK->isFinal = pm->isFinal;
-                ACK->sequenceNum = pm->seqNum;
+                ACK->sequenceNum = pm->seqNum;;
                 sendACK(socketfd, ACK, servAddr, servLen);
             }
             memset(pm, 0, sizeof(struct pipeMessage));
