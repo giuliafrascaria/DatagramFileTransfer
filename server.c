@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -37,13 +37,15 @@ pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
+void lsSendCycle();
 void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
-void ls(int tempFile);
+int ls();
+volatile int globalSeqNum, globalOpID;
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
@@ -88,39 +90,33 @@ void * sendFunction()
     //-----------------------------------------------------------------------------------------------------------------
     if(packet.command == 0)
     {
-        printf("sono il sender del server, sto per fare la list\n");
+        /*printf("sono il sender del server, sto per fare la list\n");
 
-        char listFilename[17];
-        memset(listFilename,0,17);
-        strcpy(listFilename, "lsTempXXXXXX");
+        int fd = ls();
 
-        int fd = mkstemp(listFilename);
-        while(fd == -1)
-        {
-            perror("1: error in list tempfile open");
-            fd = mkstemp(listFilename);
-
-        }
-        unlink(listFilename);
-        ls(fd);
-
+        int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
         int isFinal = 0;
         datagram sndPacket;
         while(isFinal == 0) {
-            memset(sndPacket.content, 0, 512); //È IMPORTANTE, NON ELIMINARE QUESTA RIGA
+            memset(sndPacket.content, 0, 512);
             ssize_t readByte = read(fd, sndPacket.content, 512);
             if (readByte < 512 && readByte >= 0) {
                 isFinal = 1;
                 sndPacket.isFinal = 1;
-                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d\n", (int) readByte);
+                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
             }
             else{
                 sndPacket.isFinal = 0;
             }
-            sndPacket.ackSeqNum = packet.seqNum;
+            //sndPacket.ackSeqNum = packet.seqNum;
+            sndPacket.ackSeqNum = globalSeqNum;
+            sndPacket.seqNum = seqnum;
+            sndPacket.opID = globalOpID;
+            seqnum++;
+            printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
             sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
-            printf("ho inviato un pacchetto ackando %u\n", packet.seqNum);
-        }
+        }*/
+        lsSendCycle();
     }
 
     for(;;)
@@ -175,8 +171,9 @@ void listenCycle()
             }
             else
             {
-                printf("è arrivata una richiesta\n");
-                printf("numero di sequenza ricevuto = %u\n", packet.seqNum);
+                printf("è arrivata una richiesta : numero di sequenza ricevuto = %u\n", packet.seqNum);
+                globalSeqNum = packet.seqNum;
+                globalOpID = packet.opID;
                 sendSignalThread(&condMTX2, &senderCond);
 
                 if(packet.command == 0)
@@ -374,8 +371,23 @@ void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl)
 
 }
 
-void ls(int tempFile)
+int ls()
 {
+
+    char listFilename[17];
+    memset(listFilename,0,17);
+    strcpy(listFilename, "lsTempXXXXXX");
+
+    int fd = mkstemp(listFilename);
+    while(fd == -1)
+    {
+        perror("1: error in list tempfile open");
+        fd = mkstemp(listFilename);
+
+    }
+    unlink(listFilename);
+
+
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir (LSDIR)) != NULL)
@@ -383,11 +395,53 @@ void ls(int tempFile)
         while ((ent = readdir (dir)) != NULL) {
             if((ent->d_name)[0] != '.')
             {
-                dprintf(tempFile, "%s\n", ent->d_name);
+                dprintf(fd, "%s\n", ent->d_name);
             }
         }
         closedir (dir);
     }
     else
         perror ("errore nell'apertura della directory");
+
+    lseek(fd, 0, SEEK_SET);
+    return fd;
+}
+
+void lsSendCycle(){
+    printf("sono il sender del server, sto per fare la list\n");
+
+    int fd = ls();
+
+    int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
+    int finalSeq = -1;
+    datagram sndPacket;
+    struct pipeMessage rtx;
+    while(details.sendBase != finalSeq) {
+        while(seqnum%WINDOWSIZE - details.sendBase > 256){
+            if(checkPipe(&rtx, pipeFd[0]) != 0){
+                printf("ritrasmetti\n");
+            }
+        }
+        if (checkPipe(&rtx, pipeFd[0]) == 0) {
+            memset(sndPacket.content, 0, 512);
+            ssize_t readByte = read(fd, sndPacket.content, 512);
+            if (readByte < 512 && readByte >= 0) {
+                finalSeq = seqnum;
+                sndPacket.isFinal = 1;
+                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+            } else {
+                sndPacket.isFinal = 0;
+            }
+            //sndPacket.ackSeqNum = packet.seqNum;
+            sndPacket.ackSeqNum = globalSeqNum;
+            sndPacket.seqNum = seqnum;
+            sndPacket.opID = globalOpID;
+            seqnum++;
+            printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
+            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+        }
+        else{
+            printf("ritrasmetti\n");
+        }
+    }
 }

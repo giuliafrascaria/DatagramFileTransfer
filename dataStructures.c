@@ -367,6 +367,7 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
     }
+    printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
