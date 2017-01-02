@@ -635,7 +635,7 @@ datagram * rebuildDatagram(struct pipeMessage pm)
     } else {
         packet->seqNum = pm.seqNum;
         packet->isFinal = pm.isFinal;
-        packet->ackSeqNum = 000000000000000000000000;
+        packet->ackSeqNum = details.remoteSeq; //   <<-----------------< controlla
         packet->opID = 000000000000000000000000;
     }
     return packet;

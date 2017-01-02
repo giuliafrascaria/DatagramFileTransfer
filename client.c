@@ -21,26 +21,30 @@ int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
 volatile int currentTimeSlot, globalOpID;
+volatile int fdList;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
-volatile int fdList;
 
 
+void retransmitForPush(int fd, struct pipeMessage * rtx);
 void pushSender();
+void waitForFirstPacket();
 void clientSendFunction();
+void waitForFirstPacketPush();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
-int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 void printfListInSTDOUT();
 void pushListener();
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void listenCycle();
-int checkUserInput(char * buffer);
 void parseInput(char * s);
 void listPullListener(int fd, int command);
+int checkUserInput(char * buffer);
+int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
+int getFileLen(int fd);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -82,10 +86,15 @@ void clientSendFunction()
         }
 
         printf("\n\nsono il sender e sono stato svegliato\n\n");
-
-        sendDatagram(details.sockfd , &details.addr, details.Size, &packet);
-
-        ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
+        if(packet.command == 0 || packet.command == 2)
+        {
+            sendDatagram(details.sockfd, &details.addr, details.Size, &packet);
+            ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
+        }
+        else
+        {
+            pushSender();
+        }
     }
 }
 
@@ -323,22 +332,6 @@ void listPullListener(int fd, int command)
 
 }
 
-void pushListener()
-{
-    //aspetto ack
-    //---------------------proteggere con mutex
-    packet.command = 1;
-    packet.isFinal = 1;
-    packet.opID =  rand() % 2048;
-    globalOpID = packet.opID;
-    packet.seqNum = details.mySeq;
-    details.firstSeqNum = details.mySeq;
-    //-----------------------------------------
-
-    sendSignalThread(&condMTX2, &senderCond);
-    waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
-}
-
 void pullListener()
 {
     //aspetto datagrammi
@@ -393,48 +386,61 @@ void printfListInSTDOUT()
     }
 }
 
+void pushListener()
+{
+    //aspetto ack
+    //---------------------proteggere con mutex
+    packet.command = 1;
+    packet.isFinal = 1;
+    packet.opID =  rand() % 2048;
+    globalOpID = packet.opID;
+    packet.seqNum = details.mySeq;
+    details.firstSeqNum = details.mySeq;
+    //-----------------------------------------
+
+    sendSignalThread(&condMTX2, &senderCond);
+    waitForFirstPacketPush();
+    waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
+}
+
 void pushSender()
 {
-    printf("sono il sender del client, sto per fare la push\n");
+    int seqnum = details.mySeq, finalSeq = -1, isFinal = 0;
+    ssize_t readByte;
+    datagram sndPacket;
+    struct pipeMessage rtx;
 
     int fd = open(packet.content, O_RDONLY);
     if(fd == -1){
         perror("error in open");
     }
 
-    int seqnum = details.mySeq;
-    int finalSeq = -1;
-    int isFinal = 0;
-    ssize_t readByte;
-    datagram sndPacket;
-    struct pipeMessage rtx;
+    int len = getFileLen(fd);
+    memset(sndPacket.content, 0, 512);
+    if(sprintf(sndPacket.content, "%s %d", packet.content, len) < 0)
+    {
+        perror("error in sprintf");
+    }
+
+    printf("sono arrivato fin qui, la stringa da inviare è %s\n", sndPacket.content);
+    sndPacket.isFinal = 1;
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    waitForFirstPacket();
+
     while(details.sendBase != finalSeq || isFinal == 0)
     {
         while(seqnum%WINDOWSIZE - details.sendBase > 256)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
-                printf("ritrasmetto\n");
-                memset(sndPacket.content, 0, 512);
-                if(lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET) == -1){
-                    perror("errore in lseek");
-                }
-                if(read(fd, sndPacket.content, 512)==-1){
-                    perror("error in read");
-                }
-
-                sndPacket.isFinal = rtx.isFinal;
-                sndPacket.ackSeqNum = details.remoteSeq;
-                sndPacket.seqNum = rtx.seqNum;
-                sndPacket.opID = globalOpID;
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                retransmitForPush(fd, &rtx);
             }
         }
         if (isFinal == 1)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
-                printf("ciao giogge! \n\nritrasmetti\n");
+                retransmitForPush(fd, &rtx);
             }
         }
         else
@@ -457,18 +463,81 @@ void pushSender()
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
 
                 seqnum = details.mySeq;
-
             }
             else
-            {
-                printf("ritrasmetti\n");
-            }
+                retransmitForPush(fd, &rtx);
         }
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+}
+
+int getFileLen(int fd)
+{
+
+    ssize_t len = lseek(fd, 0L, SEEK_END);
+    if(len == -1){
+        perror("error in lseek");
+    }
+    if(lseek(fd, 0L, SEEK_SET) == -1){
+        perror("error in lseek");
+    }
+    return (int) len;
+}
+
+void waitForFirstPacket()
+{
+    int finish = 0;
+    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
+    if(pm == NULL)
+        perror("error in malloc");
+
+    while(finish != -1)
+    {
+        if (checkPipe(pm, pipeSendACK[0]) == 1)
+        {
+            finish = -1;
+            free(pm);
+        }
+        else if (checkPipe(pm, pipeFd[0]) == 1)
+        {
+            datagram * packetRTX = rebuildDatagram(*pm);
+            sendDatagram(details.sockfd2, &details.addr2, details.Size2, packetRTX);
+            memset(pm, 0, sizeof(struct pipeMessage));
+            printf("\n\nritrasmetto\n");
+        }
+    }
+}
+
+void waitForFirstPacketPush()
+{
+    while(receiveACK(details.sockfd, (struct sockaddr *) &details.addr, &details.Size) == 0){}
+
+    handshake ack;
+    ack.isFinal = 1;
+    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1){
+        perror("error in write on pipe");
+    }
+}
+
+void retransmitForPush(int fd, struct pipeMessage * rtx)
+{
+    printf("ritrasmetto\n");
+    datagram sndPacket;
+    if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1){
+        perror("errore in lseek");
+    }
+    if(read(fd, sndPacket.content, 512)==-1){
+        perror("error in read");
+    }
+
+    sndPacket.isFinal = rtx->isFinal;
+    sndPacket.ackSeqNum = details.remoteSeq;
+    sndPacket.seqNum = rtx->seqNum;
+    sndPacket.opID = globalOpID;
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
