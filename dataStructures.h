@@ -60,6 +60,7 @@ struct details
     int remoteSeq;
     int mySeq;
     int volatile sendBase;
+    int volatile firstSeqNum;
     //struct selectCell selectiveWnd[];
 };
 
@@ -157,7 +158,7 @@ datagram * rebuildDatagram(struct pipeMessage pm);
 
 void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen);
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd);
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
 

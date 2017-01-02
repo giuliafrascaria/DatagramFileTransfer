@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/sendfile.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
@@ -20,7 +21,7 @@ int pipeSendACK[2];
 volatile int currentTimeSlot;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
-
+volatile int fdList;
 
 void clientSendFunction();
 void * clientListenFunction();
@@ -28,7 +29,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
-
+void printfListInSTDOUT();
 
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -183,6 +184,7 @@ void listenCycle()
 
     for(;;)
     {
+        res = 0;
         printf("insert command : \n");
 
         while(!res)
@@ -209,7 +211,7 @@ void listenCycle()
                 timeout = 0;
                 //provvisorio
                 //poi mi devo mettere a sentire i dati ricevuti dalla socket
-                res = 0;
+                //res = 0;
             }
 
             if(timeout == 120000)
@@ -227,7 +229,6 @@ void parseInput(char * s)
     {
         printf("'list'\n");
         listListener();
-
     }
     else if (strncmp(s, "push", 4) == 0)//---------------------------------------------------------listener push command
     {
@@ -254,7 +255,6 @@ void parseInput(char * s)
 void listListener()
 {
     char listFilename[17];
-    int fdList;
 
     memset(listFilename,0,17);
 
@@ -279,7 +279,8 @@ void listListener()
     sendSignalThread(&condMTX2, &senderCond);
 
     //aspetto datagrammi
-    getResponse(details.sockfd2, &(details.addr2), &(details.Size2));
+    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fdList);
+    printfListInSTDOUT();
 }
 
 void pushListener()
@@ -384,4 +385,33 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     sendACK(socketfd, &ACK, servAddr, servLen);
     //sentPacket(ACK.sequenceNum, 0);
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
+}
+
+void printfListInSTDOUT(){
+    printf("\n----------------------LIST-----------------------\n\n");
+
+    off_t count = lseek(fdList, 0L, SEEK_END);
+    while (count == -1) {
+        perror("1: error in file size measurement\n");
+        sleep(1);
+        count = lseek(fdList, 0L, SEEK_END);
+    }
+    while(lseek(fdList, 0L, SEEK_SET) == -1){
+        perror("1: error in lseek");
+        lseek(fdList, 0L, SEEK_SET);
+    }
+
+    if (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
+        perror("error in sendfile");
+    }
+
+    printf("\n------------------------------------------------\n\n");
+    if (ftruncate(fdList, 0) == -1) {
+        perror("0: error in truncating file");
+    }
+
+    if( close(fdList) == -1)
+    {
+        perror("0: error in list file close");
+    }
 }

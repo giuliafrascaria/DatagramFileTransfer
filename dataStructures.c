@@ -157,6 +157,11 @@ void ackSentPacket(int ackN)
         printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
+        while(selectiveWnd[details.sendBase%windowSize].value == 2){
+            selectiveWnd[details.sendBase%windowSize].value = 0;
+            details.sendBase = details.sendBase + 1;
+            printf("mando avanti sendBase\n");
+        }
     }
 
     //printWindow();
@@ -354,7 +359,7 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
     }
     else
     {
-        printf("\n\nho trovato un rtxN\n\n");
+        //printf("\n\nho trovato un rtxN\n\n");
         return 1;
     }
 }
@@ -389,25 +394,24 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
     {
         perror("error in malloc");
     }
-
-    ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
-    if(msgLen == -1 && errno != EAGAIN)
-    {
-        perror("error in recvfrom");
-    }
-    else if(msgLen == -1 && errno == EAGAIN)
-        return 0;
     else {
+        ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
+        if (msgLen == -1 && errno != EAGAIN) {
+            perror("error in recvfrom");
+        } else if (msgLen == -1 && errno == EAGAIN)
+            return 0;
+        else {
 
-        printf("ricevuto ack\n");
-        ackSentPacket(ACK->sequenceNum);
-        isFinal = ACK->isFinal;
-        free(ACK);
+            printf("ricevuto ack\n");
+            ackSentPacket(ACK->sequenceNum);
+            isFinal = ACK->isFinal;
+            free(ACK);
+        }
     }
     return isFinal;
 }
-
-int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t *slen, int firstN, size_t finalLen)
+/*
+int receiveDatagram(int socketfd, struct sockaddr * address, socklen_t *slen, int file, size_t finalLen)
 {
     char *buffer = malloc(sizeof(datagram));
     //datagram * pointer = &packet;
@@ -424,7 +428,7 @@ int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t
         packet = (datagram *) buffer;
 
         int isFinal = packet->isFinal;
-        int offset = packet->seqNum - firstN;
+        int offset = packet->seqNum - details.firstSeqNum;
 
         if (lseek(file, offset * 512, SEEK_SET) == -1)
             perror("lseek error");
@@ -452,7 +456,7 @@ int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t
         return ACK->isFinal;
     }
 }
-
+*/
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
 {
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
@@ -499,7 +503,7 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     }
 }
 
-void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
+/*void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
 {
     int isFinal = 0, lastDatagram = -1;
     isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
@@ -509,9 +513,9 @@ void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen
         if(isFinal != 0)
             lastDatagram = isFinal;
     }
-}
+}*/
 
-void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen)
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd)
 {
     int isFinal = 0;
     datagram packet;
@@ -527,7 +531,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen)
 
             //il sender remoto manda un pacchetto con isFInal -1 dopo che ha ricevuto tutti gli ack dei suoi pacchetti
             //lo setta comunque a 1 quando è opportuno
-
+            writeOnFile(fd, packet.content, 512);
             ackSentPacket(packet.ackSeqNum);
             tellSenderSendACK(packet.seqNum, packet.isFinal);
             memset(&packet, 0, sizeof(datagram));
@@ -592,7 +596,8 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             else
             {
                 printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
-                finish = pm->seqNum;
+                finish = pm->isFinal;
+                printf("valore di finish (SENDER) = %u\n", finish);
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;;
                 sendACK(socketfd, ACK, servAddr, servLen);

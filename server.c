@@ -45,7 +45,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
 int ls();
-volatile int globalSeqNum, globalOpID;
+volatile int globalOpID;
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
@@ -80,48 +80,22 @@ void * sendFunction()
     finishHandshake();
 
     //---------------------------------------------------------------------scheletro di sincronizzazione listener sender
-    printf("mi metto in cond wait\n");
-    if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
-    {
-        perror("error in cond wait");
-    }
-    printf("sono dopo la seconda cond wait, giunse un pacchetto con comando %d\n\n", packet.command);
-
-    //-----------------------------------------------------------------------------------------------------------------
-    if(packet.command == 0)
-    {
-        /*printf("sono il sender del server, sto per fare la list\n");
-
-        int fd = ls();
-
-        int seqnum = rand() % 5000; //     <<-----------------------------------------------------------<      CAMBIARE
-        int isFinal = 0;
-        datagram sndPacket;
-        while(isFinal == 0) {
-            memset(sndPacket.content, 0, 512);
-            ssize_t readByte = read(fd, sndPacket.content, 512);
-            if (readByte < 512 && readByte >= 0) {
-                isFinal = 1;
-                sndPacket.isFinal = 1;
-                printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
-            }
-            else{
-                sndPacket.isFinal = 0;
-            }
-            //sndPacket.ackSeqNum = packet.seqNum;
-            sndPacket.ackSeqNum = globalSeqNum;
-            sndPacket.seqNum = seqnum;
-            sndPacket.opID = globalOpID;
-            seqnum++;
-            printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
-            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
-        }*/
-        lsSendCycle();
-    }
-
     for(;;)
     {
+        printf("mi metto in cond wait\n");
+        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
+        {
+            perror("error in cond wait");
+        }
+        printf("sono dopo la seconda cond wait, giunse un pacchetto con comando %d\n\n", packet.command);
 
+        //-----------------------------------------------------------------------------------------------------------------
+        if(packet.command == 0)
+        {
+            details.sendBase = details.mySeq;
+            details.firstSeqNum = details.mySeq;
+            lsSendCycle();
+        }
     }
 
 }
@@ -151,6 +125,7 @@ void listenCycle()
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
+        printf("\nsono il listener e ricomincio il ciclo\n");
         memset(&packet, 0, sizeof(datagram));
         int res = 0;
         int timeout = 0;
@@ -172,7 +147,7 @@ void listenCycle()
             else
             {
                 printf("è arrivata una richiesta : numero di sequenza ricevuto = %u\n", packet.seqNum);
-                globalSeqNum = packet.seqNum;
+                details.remoteSeq = packet.seqNum;
                 globalOpID = packet.opID;
                 sendSignalThread(&condMTX2, &senderCond);
 
@@ -419,6 +394,7 @@ void lsSendCycle()
     int seqnum = details.mySeq;
     int finalSeq = -1;
     int isFinal = 0;
+    ssize_t readByte;
     datagram sndPacket;
     struct pipeMessage rtx;
     while(details.sendBase != finalSeq || isFinal == 0)
@@ -427,7 +403,20 @@ void lsSendCycle()
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
-                printf("ritrasmetti\n");
+                printf("ritrasmetto\n");
+                memset(sndPacket.content, 0, 512);
+                if(lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET) == -1){
+                    perror("errore in lseek");
+                }
+                if(read(fd, sndPacket.content, 512)==-1){
+                    perror("error in read");
+                }
+
+                sndPacket.isFinal = rtx.isFinal;
+                sndPacket.ackSeqNum = details.remoteSeq;
+                sndPacket.seqNum = rtx.seqNum;
+                sndPacket.opID = globalOpID;
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
             }
         }
         if (isFinal == 1)
@@ -442,7 +431,7 @@ void lsSendCycle()
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
                 memset(sndPacket.content, 0, 512);
-                ssize_t readByte = read(fd, sndPacket.content, 512);
+                readByte = read(fd, sndPacket.content, 512);
                 if (readByte < 512 && readByte >= 0)
                 {
                     finalSeq = seqnum;
@@ -450,10 +439,10 @@ void lsSendCycle()
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
                 }
                 sndPacket.isFinal = (short) isFinal;
-                sndPacket.ackSeqNum = globalSeqNum;
+                sndPacket.ackSeqNum = details.remoteSeq;
                 sndPacket.seqNum = seqnum;
                 sndPacket.opID = globalOpID;
-                printf("ho inviato un pacchetto ackando %u\n", globalSeqNum);
+                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
 
                 seqnum = details.mySeq;
