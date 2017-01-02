@@ -389,27 +389,34 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 {
     int isFinal = 0;
-    handshake *ACK = malloc(sizeof(handshake));
-    if(ACK == NULL)
-    {
-        perror("error in malloc");
+    char * buffer = malloc(sizeof(datagram));
+    if(buffer == NULL){
+        perror("error in buffer malloc");
     }
     else {
-        ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
+        handshake *ACK;
+
+        ssize_t msgLen = recvfrom(mainSocket, buffer, sizeof(datagram), 0, address, slen);
         if (msgLen == -1 && errno != EAGAIN) {
             perror("error in recvfrom");
         } else if (msgLen == -1 && errno == EAGAIN)
             return 0;
         else {
-
-            printf("ricevuto ack\n");
-            ackSentPacket(ACK->sequenceNum);
-            isFinal = ACK->isFinal;
-            free(ACK);
+            if (msgLen == sizeof(handshake)) {
+                ACK = (handshake *) buffer;
+                printf("ricevuto ack\n");
+                ackSentPacket(ACK->sequenceNum);
+                isFinal = ACK->isFinal;
+                free(ACK);
+            }
+            else
+                printf("ho ricevuto un datagramma invece che un ack\n");
         }
     }
+
     return isFinal;
 }
+
 /*
 int receiveDatagram(int socketfd, struct sockaddr * address, socklen_t *slen, int file, size_t finalLen)
 {
@@ -457,6 +464,7 @@ int receiveDatagram(int socketfd, struct sockaddr * address, socklen_t *slen, in
     }
 }
 */
+
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
 {
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);

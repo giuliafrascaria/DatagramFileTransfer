@@ -401,8 +401,9 @@ void printfListInSTDOUT(){
         lseek(fdList, 0L, SEEK_SET);
     }
 
-    if (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
+    while (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
         perror("error in sendfile");
+        sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count);
     }
 
     printf("\n------------------------------------------------\n\n");
