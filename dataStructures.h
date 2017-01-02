@@ -150,7 +150,7 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition);
 
 int checkWindowSendBase();
 
-void writeOnFile(int file, char * content, size_t len);
+void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len);
 
 void tellSenderSendACK(int packetN, short int isFinal);
 

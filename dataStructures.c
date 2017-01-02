@@ -526,20 +526,20 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
 {
     int isFinal = 0;
     datagram packet;
+    int firstPacket = details.remoteSeq + 1;//          lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     while(isFinal != -1)
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
             isFinal = packet.isFinal;
 
-            //devo restare qua dentro finchè non ho ricevuto tutti i pacchetti fino a quello finale
-            //visto che in mezzo se ne possono perdere, non devo uscire finchè una recvbase
-            //non è uguale al numero di sequenza finale, recv base è il più grande seqnum mandato senza buchi
+            //----------------------------------------------------------------DA CAMBIARE
+            writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
+            //----------------------------------------------------------------RAPIDAMENTE
 
-            //il sender remoto manda un pacchetto con isFInal -1 dopo che ha ricevuto tutti gli ack dei suoi pacchetti
-            //lo setta comunque a 1 quando è opportuno
-            writeOnFile(fd, packet.content, 512);
             ackSentPacket(packet.ackSeqNum);
+
+            details.remoteSeq = packet.seqNum;
             tellSenderSendACK(packet.seqNum, packet.isFinal);
             memset(&packet, 0, sizeof(datagram));
         }
@@ -561,8 +561,14 @@ int checkWindowSendBase()
     return 1;
 }
 
-void writeOnFile(int file, char * content, size_t len)
+void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
+    offset = seqnum-firstnum;
+
+    if (lseek(file, offset * 512, SEEK_SET) == -1)
+    {
+        perror("1: lseek error");
+    }
     if (write(file, content, len) == -1)
     {
         perror("error in write");
@@ -580,7 +586,7 @@ void tellSenderSendACK(int packetN, short int isFinal)
     {
         tellACK->seqNum = packetN;
         tellACK->isFinal = isFinal;
-        writeOnFile(pipeSendACK[1], (char *) tellACK, sizeof(struct pipeMessage));
+        writeOnFile(pipeSendACK[1], (char *) tellACK, 0, 0, sizeof(struct pipeMessage));
     }
 }
 
