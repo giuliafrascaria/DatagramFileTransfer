@@ -49,7 +49,6 @@ int ls();
 int receiveFirstDatagram(char * content);
 
 
-
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        <<-------------<   FUNZIONI
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
@@ -165,7 +164,7 @@ void listenCycle()
                 details.remoteSeq = packet.seqNum;
                 globalOpID = packet.opID;
                 sendSignalThread(&condMTX2, &senderCond);
-
+                printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
@@ -174,6 +173,7 @@ void listenCycle()
                     sendSignalThread(&condMTX2, &senderCond);
                     int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, 1);
+                    printf("sono arrivato fino a qui\n");
                     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
                 }
 

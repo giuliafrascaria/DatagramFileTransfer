@@ -45,6 +45,7 @@ void listPullListener(int fd, int command);
 int checkUserInput(char * buffer);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int getFileLen(int fd);
+char * stringParser(char * string);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -417,16 +418,23 @@ void pushSender()
 
     int len = getFileLen(fd);
     memset(sndPacket.content, 0, 512);
-    if(sprintf(sndPacket.content, "%s %d", packet.content, len) < 0)
+    char * s = malloc(100);
+    if(s == NULL){
+        perror("error in malloc");
+    }
+    s = stringParser(packet.content);
+    if(sprintf(sndPacket.content, "%s %d", s, len) < 0)
     {
         perror("error in sprintf");
     }
 
     printf("sono arrivato fin qui, la stringa da inviare è %s\n", sndPacket.content);
+    sndPacket.command = 1;
     sndPacket.isFinal = 1;
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacket();
 
+    printf("sono arrivato dopo waitForFirstPacket\n\n");
     while(details.sendBase != finalSeq || isFinal == 0)
     {
         while(seqnum%WINDOWSIZE - details.sendBase > 256)
@@ -460,7 +468,7 @@ void pushSender()
                 sndPacket.seqNum = seqnum;
                 sndPacket.opID = globalOpID;
                 printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
                 seqnum = details.mySeq;
             }
@@ -470,7 +478,7 @@ void pushSender()
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 
@@ -504,7 +512,7 @@ void waitForFirstPacket()
         else if (checkPipe(pm, pipeFd[0]) == 1)
         {
             datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(details.sockfd2, &details.addr2, details.Size2, packetRTX);
+            sendDatagram(details.sockfd, &details.addr, details.Size, packetRTX);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }
@@ -513,7 +521,7 @@ void waitForFirstPacket()
 
 void waitForFirstPacketPush()
 {
-    while(receiveACK(details.sockfd, (struct sockaddr *) &details.addr, &details.Size) == 0){}
+    while(receiveACK(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2) == 0){}
 
     handshake ack;
     ack.isFinal = 1;
@@ -537,7 +545,15 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     sndPacket.ackSeqNum = details.remoteSeq;
     sndPacket.seqNum = rtx->seqNum;
     sndPacket.opID = globalOpID;
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+}
+
+char * stringParser(char * string)
+{
+    char * sToReturn  = malloc(512);
+    char* start=strrchr(string,'/'); /* Find the last '/' */
+    strcpy(sToReturn, start+1);
+    return sToReturn;
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
@@ -615,5 +631,4 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     //sentPacket(ACK.sequenceNum, 0);
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
-
 
