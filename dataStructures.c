@@ -533,9 +533,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         {
             isFinal = packet.isFinal;
 
-            //----------------------------------------------------------------DA CAMBIARE
+            //----------------------------------------------------------------
             writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
-            //----------------------------------------------------------------RAPIDAMENTE
+            //----------------------------------------------------------------
 
             ackSentPacket(packet.ackSeqNum);
 
