@@ -565,10 +565,14 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
 
-    if (lseek(file, offset * 512, SEEK_SET) == -1)
+    if(firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-        perror("1: lseek error");
+        if (lseek(file, offset * 512, SEEK_SET) == -1)
+        {
+            perror("1: lseek error");
+        }
     }
+
     if (write(file, content, len) == -1)
     {
         perror("error in write");
