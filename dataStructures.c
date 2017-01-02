@@ -157,15 +157,12 @@ void ackSentPacket(int ackN)
         printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
-        while(selectiveWnd[details.sendBase%windowSize].value == 2){
-            selectiveWnd[details.sendBase%windowSize].value = 0;
-            details.sendBase = details.sendBase + 1;
-            printf("mando avanti sendBase\n");
-        }
+
+        slideWindow();
     }
 
     //printWindow();
-    slideWindow();
+
 
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 }
@@ -189,10 +186,10 @@ void printWindow()
 
 void slideWindow()
 {
-    while ((selectiveWnd[sendBase % windowSize]).value == 2)
-    {
-        selectiveWnd[sendBase % windowSize].value = 0;
-        sendBase = sendBase + 1;
+    while(selectiveWnd[details.sendBase%windowSize].value == 2){
+        selectiveWnd[details.sendBase%windowSize].value = 0;
+        details.sendBase = details.sendBase + 1;
+        printf("mando avanti sendBase\n");
     }
     /*printf("finestra dopo scorrimento\n");
     printWindow();*/
