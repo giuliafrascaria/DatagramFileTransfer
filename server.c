@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -96,6 +96,13 @@ void * sendFunction()
             details.firstSeqNum = details.mySeq;
             lsSendCycle();
         }
+        if(packet.command == 2)
+        {
+            details.sendBase = details.mySeq;
+            details.firstSeqNum = details.mySeq;
+
+            printf("\n\nè una pull\n\n");
+        }
     }
 
 }
@@ -151,7 +158,7 @@ void listenCycle()
                 globalOpID = packet.opID;
                 sendSignalThread(&condMTX2, &senderCond);
 
-                if(packet.command == 0)
+                if(packet.command == 0 || packet.command == 2)
                 {
                     //wait for datagram or ack blabla
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);

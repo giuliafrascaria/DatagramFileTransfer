@@ -342,6 +342,7 @@ void initTimerWheel()
 
 int checkPipe(struct pipeMessage *rtxN, int pipefd)
 {
+    memset(rtxN, 0, sizeof(struct pipeMessage));
     if(read(pipefd, rtxN, sizeof(struct pipeMessage)) == -1)
     {
         if(errno != EAGAIN)
@@ -387,19 +388,25 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 {
     int isFinal = 0;
     char * buffer = malloc(sizeof(datagram));
-    if(buffer == NULL){
+    if(buffer == NULL)
+    {
         perror("error in buffer malloc");
     }
-    else {
+    else
+    {
         handshake *ACK;
 
         ssize_t msgLen = recvfrom(mainSocket, buffer, sizeof(datagram), 0, address, slen);
-        if (msgLen == -1 && errno != EAGAIN) {
+        if (msgLen == -1 && errno != EAGAIN)
+        {
             perror("error in recvfrom");
-        } else if (msgLen == -1 && errno == EAGAIN)
+        }
+        else if (msgLen == -1 && errno == EAGAIN)
             return 0;
-        else {
-            if (msgLen == sizeof(handshake)) {
+        else
+        {
+            if (msgLen == sizeof(handshake))
+            {
                 ACK = (handshake *) buffer;
                 printf("ricevuto ack\n");
                 ackSentPacket(ACK->sequenceNum);
@@ -604,7 +611,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 finish = pm->isFinal;
                 printf("valore di finish (SENDER) = %u\n", finish);
                 ACK->isFinal = pm->isFinal;
-                ACK->sequenceNum = pm->seqNum;;
+                ACK->sequenceNum = pm->seqNum;
                 sendACK(socketfd, ACK, servAddr, servLen);
             }
             memset(pm, 0, sizeof(struct pipeMessage));

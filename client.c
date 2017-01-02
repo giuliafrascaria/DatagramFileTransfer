@@ -11,6 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -36,7 +38,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 void listenCycle();
 int checkUserInput(char * buffer);
 void parseInput(char * s);
-void listListener();
+void listPullListener(int fd, int command);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -227,8 +229,19 @@ void parseInput(char * s)
 {
     if (strncmp(s,"list", 4) == 0)//---------------------------------------------------------------listener list command
     {
-        printf("'list'\n");
-        listListener();
+        char listFilename[17];
+
+        memset(listFilename,0,17);
+        strcpy(listFilename, "lsTempXXXXXX");
+        fdList = mkstemp(listFilename);
+        while(fdList == -1)
+        {
+            perror("1: error in list tempfile open");
+            fdList = mkstemp(listFilename);
+        }
+        unlink(listFilename);
+
+        listPullListener(fdList, 0);
     }
     else if (strncmp(s, "push", 4) == 0)//---------------------------------------------------------listener push command
     {
@@ -237,6 +250,36 @@ void parseInput(char * s)
     else if (strncmp(s, "pull", 4) == 0)//---------------------------------------------------------listener pull command
     {
         printf("'pull'\n");
+
+        char * content = malloc(500);
+        char * fileName;
+        int fdPull;
+
+        if (sscanf(s, "%*s %s", content) == EOF) {
+            perror("1: error in reading words from standard input, first sscanf pull");
+            free(s);
+            free(content);
+        }
+
+        memset(packet.content, 0, 512);
+        strcpy(packet.content, content);
+
+        printf("richiesta di pull per il pacchetto %s\n", content);
+
+        fileName = malloc(512);
+        strcat(fileName, PULLDIR);
+        strcat(fileName, content);
+
+        printf("|    path : %s \n", fileName);
+
+        if ((fdPull = open(fileName, O_CREAT | O_TRUNC | O_RDWR, 00777)) == -1)
+        {
+            perror("1: file already exists on push");
+        }
+
+        printf("|    file created with name : %s \n", content);
+
+        listPullListener(fdPull, 2);
     }
     else if (strncmp(s, "quit", 4) == 0)//---------------------------------------------------------listener quit command
     {
@@ -252,25 +295,11 @@ void parseInput(char * s)
     }
 }
 
-void listListener()
+void listPullListener(int fd, int command)
 {
-    char listFilename[17];
-
-    memset(listFilename,0,17);
-
-    strcpy(listFilename, "lsTempXXXXXX");
-
-    fdList = mkstemp(listFilename);
-    while(fdList == -1)
-    {
-        perror("1: error in list tempfile open");
-        fdList = mkstemp(listFilename);
-    }
-
-    unlink(listFilename);
 
     //---------------------proteggere con mutex
-    packet.command = 0;
+    packet.command = command;
     packet.isFinal = 1;
     packet.opID =  rand() % 2048;
     packet.seqNum = details.mySeq;
@@ -279,8 +308,13 @@ void listListener()
     sendSignalThread(&condMTX2, &senderCond);
 
     //aspetto datagrammi
-    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fdList);
-    printfListInSTDOUT();
+    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
+
+    if(command == 0)
+    {
+        printfListInSTDOUT();
+    }
+
 }
 
 void pushListener()
