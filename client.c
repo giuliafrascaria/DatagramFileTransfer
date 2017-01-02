@@ -20,11 +20,13 @@ int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
-volatile int currentTimeSlot;
+volatile int currentTimeSlot, globalOpID;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
 volatile int fdList;
 
+
+void pushSender();
 void clientSendFunction();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -32,7 +34,7 @@ void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, int synackSN);
 void printfListInSTDOUT();
-
+void pushListener();
 void initProcess();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void listenCycle();
@@ -246,6 +248,10 @@ void parseInput(char * s)
     else if (strncmp(s, "push", 4) == 0)//---------------------------------------------------------listener push command
     {
         printf("'push'\n");
+        if (sscanf(s, "%*s %s", packet.content) == EOF) {
+            perror("1: error in reading words from standard input, first sscanf push");
+        }
+        pushListener();
     }
     else if (strncmp(s, "pull", 4) == 0)//---------------------------------------------------------listener pull command
     {
@@ -320,6 +326,17 @@ void listPullListener(int fd, int command)
 void pushListener()
 {
     //aspetto ack
+    //---------------------proteggere con mutex
+    packet.command = 1;
+    packet.isFinal = 1;
+    packet.opID =  rand() % 2048;
+    globalOpID = packet.opID;
+    packet.seqNum = details.mySeq;
+    details.firstSeqNum = details.mySeq;
+    //-----------------------------------------
+
+    sendSignalThread(&condMTX2, &senderCond);
+    waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
 }
 
 void pullListener()
@@ -343,6 +360,115 @@ int checkUserInput(char * buffer)
     {
         return 0;
     }
+}
+
+void printfListInSTDOUT()
+{
+    printf("\n----------------------LIST-----------------------\n\n");
+
+    off_t count = lseek(fdList, 0L, SEEK_END);
+    while (count == -1) {
+        perror("1: error in file size measurement\n");
+        sleep(1);
+        count = lseek(fdList, 0L, SEEK_END);
+    }
+    while(lseek(fdList, 0L, SEEK_SET) == -1){
+        perror("1: error in lseek");
+        lseek(fdList, 0L, SEEK_SET);
+    }
+
+    while (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
+        perror("error in sendfile");
+        sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count);
+    }
+
+    printf("\n------------------------------------------------\n\n");
+    if (ftruncate(fdList, 0) == -1) {
+        perror("0: error in truncating file");
+    }
+
+    if( close(fdList) == -1)
+    {
+        perror("0: error in list file close");
+    }
+}
+
+void pushSender()
+{
+    printf("sono il sender del client, sto per fare la push\n");
+
+    int fd = open(packet.content, O_RDONLY);
+    if(fd == -1){
+        perror("error in open");
+    }
+
+    int seqnum = details.mySeq;
+    int finalSeq = -1;
+    int isFinal = 0;
+    ssize_t readByte;
+    datagram sndPacket;
+    struct pipeMessage rtx;
+    while(details.sendBase != finalSeq || isFinal == 0)
+    {
+        while(seqnum%WINDOWSIZE - details.sendBase > 256)
+        {
+            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            {
+                printf("ritrasmetto\n");
+                memset(sndPacket.content, 0, 512);
+                if(lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET) == -1){
+                    perror("errore in lseek");
+                }
+                if(read(fd, sndPacket.content, 512)==-1){
+                    perror("error in read");
+                }
+
+                sndPacket.isFinal = rtx.isFinal;
+                sndPacket.ackSeqNum = details.remoteSeq;
+                sndPacket.seqNum = rtx.seqNum;
+                sndPacket.opID = globalOpID;
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+            }
+        }
+        if (isFinal == 1)
+        {
+            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            {
+                printf("ciao giogge! \n\nritrasmetti\n");
+            }
+        }
+        else
+        {
+            if (checkPipe(&rtx, pipeFd[0]) == 0)
+            {
+                memset(sndPacket.content, 0, 512);
+                readByte = read(fd, sndPacket.content, 512);
+                if (readByte < 512 && readByte >= 0)
+                {
+                    finalSeq = seqnum;
+                    isFinal = 1;
+                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                }
+                sndPacket.isFinal = (short) isFinal;
+                sndPacket.ackSeqNum = details.remoteSeq;
+                sndPacket.seqNum = seqnum;
+                sndPacket.opID = globalOpID;
+                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+
+                seqnum = details.mySeq;
+
+            }
+            else
+            {
+                printf("ritrasmetti\n");
+            }
+        }
+    }
+    memset(sndPacket.content, 0, 512);
+    sndPacket.isFinal = -1;
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
@@ -421,32 +547,4 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
 
-void printfListInSTDOUT(){
-    printf("\n----------------------LIST-----------------------\n\n");
 
-    off_t count = lseek(fdList, 0L, SEEK_END);
-    while (count == -1) {
-        perror("1: error in file size measurement\n");
-        sleep(1);
-        count = lseek(fdList, 0L, SEEK_END);
-    }
-    while(lseek(fdList, 0L, SEEK_SET) == -1){
-        perror("1: error in lseek");
-        lseek(fdList, 0L, SEEK_SET);
-    }
-
-    while (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
-        perror("error in sendfile");
-        sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count);
-    }
-
-    printf("\n------------------------------------------------\n\n");
-    if (ftruncate(fdList, 0) == -1) {
-        perror("0: error in truncating file");
-    }
-
-    if( close(fdList) == -1)
-    {
-        perror("0: error in list file close");
-    }
-}

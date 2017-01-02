@@ -161,9 +161,6 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
 
-    //printWindow();
-
-
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 }
 
@@ -184,17 +181,15 @@ void printWindow()
     printf("\n");
 }
 
-void slideWindow()
+void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
         selectiveWnd[details.sendBase%windowSize].value = 0;
         details.sendBase = details.sendBase + 1;
         printf("mando avanti sendBase\n");
     }
-    /*printf("finestra dopo scorrimento\n");
-    printWindow();*/
+    //printWindow();
 }
-
 
 //----------------------------------------------------------------------------------------------------------------THREAD
 
