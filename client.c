@@ -392,7 +392,7 @@ void pushListener()
     //aspetto ack
     //---------------------proteggere con mutex
     packet.command = 1;
-    packet.isFinal = 1;
+    packet.isFinal = 0;
     packet.opID =  rand() % 2048;
     globalOpID = packet.opID;
     packet.seqNum = details.mySeq;

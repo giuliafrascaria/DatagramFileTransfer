@@ -567,11 +567,12 @@ int checkWindowSendBase()
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
-printf("seqnum = %d, firstnum = %d\n\n\n", seqnum, firstnum);
+    printf("seqnum = %d, firstnum = %d\n\n\n", seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         printf("faccio una lseek\n");
-        if ((lseek(file, offset * 512, SEEK_SET)) == -1) {
+        if ((lseek(file, offset * 512, SEEK_SET)) == -1)
+        {
             perror("1: lseek error");
         }
     }

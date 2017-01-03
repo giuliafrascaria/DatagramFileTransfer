@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -177,6 +177,7 @@ void listenCycle()
                     sendSignalThread(&condMTX2, &senderCond);
                     details.remoteSeq = packet.seqNum;
                     int fd = receiveFirstDatagram(packet.content);
+
                     tellSenderSendACK(packet.seqNum, 1);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd);
@@ -412,21 +413,41 @@ int ls()
 int receiveFirstDatagram(char * content)
 {
     int fd;
+    char * fileName;
     char *s = malloc(100);
-    if (s == NULL) {
+    if (s == NULL)
+    {
         perror("error in malloc");
     }
-    if (sscanf(content, "%s %d", s, &finalLen) == EOF) {
+    if (sscanf(content, "%s %d", s, &finalLen) == EOF)
+    {
         perror("1: error in reading words from standard input, first sscanf push");
     }
     //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
-    char * path = malloc(100);
-    if(path == NULL){
+
+    char * pathsimone = "/pushObjects/";  //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
+    strcat(pathsimone, s);
+    if(pathsimone == NULL)
+    {
         perror("error in malloc");
     }
-    sprintf(path, "pushObjects/%s", s);
-    printf("file da aprire: %s\n", path);
-    if((fd = open(path, O_RDWR | O_TRUNC | O_CREAT, 77777) == -1)){
+    sprintf(pathsimone, "pushObjects vecchio /%s", s);
+    printf("file da aprire vecchio: %s\n", pathsimone);
+
+    //GIULIA
+    fileName = malloc(512);
+    if(fileName == NULL)
+    {
+        perror("error in malloc");
+    }
+    strcat(fileName, LSDIR);
+    strcat(fileName, content);
+
+    printf("|    path nuovo: %s \n", fileName);
+    printf("file da aprire: %s\n", fileName);
+
+    if((fd = open(fileName, O_RDWR | O_TRUNC | O_CREAT, 77777) == -1))
+    {
         perror("error in opening/creating file");
     }
     return fd;
