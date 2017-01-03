@@ -141,20 +141,20 @@ void sentPacket(int packetN, int retransmission)
 
 void ackSentPacket(int ackN)
 {
-    printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n\n\n", ackN);
+    printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n", ackN);
 
     mtxLock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
-        printf("aggiorno la selective repeat\n");
+        //printf("aggiorno la selective repeat\n");
         ((selectiveWnd)[ackN % windowSize]).value = 2;
 
         //--------------------------------------------------------------------------------andrà protetto con un mutex--------------------
 
         (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
-        printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
-        printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
+        //printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
+        //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
 
@@ -162,6 +162,7 @@ void ackSentPacket(int ackN)
     }
 
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+    printf("esco da acksentpacket\n");
 }
 
 void printWindow()
@@ -186,7 +187,7 @@ void slideWindow() //secondo me può essere eliminata e messa all'interno di ack
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
         selectiveWnd[details.sendBase%windowSize].value = 0;
         details.sendBase = details.sendBase + 1;
-        printf("mando avanti sendBase\n");
+        //printf("mando avanti sendBase\n");
     }
     //printWindow();
 }
@@ -238,6 +239,7 @@ void * timerFunction()
     printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
+    int i = 0;
     for(;;)
     {
 
@@ -283,6 +285,10 @@ void * timerFunction()
             {
                 perror("error on usleep");
             }
+            if(i%500000 != 0)
+                i++;
+            else
+                printf("%d\n", i);
 
         }
         exit(EXIT_SUCCESS);
@@ -322,7 +328,7 @@ void startTimer(int packetN, int posInWheel)
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
-    printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
+    //printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
 }
 
 void initTimerWheel()
@@ -403,10 +409,13 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             if (msgLen == sizeof(handshake))
             {
                 ACK = (handshake *) buffer;
-                printf("ricevuto ack\n");
+                //printf("ricevuto ack\n");
                 ackSentPacket(ACK->sequenceNum);
+                printf("esco da acksentpacket\n");
                 isFinal = ACK->isFinal;
+                printf("esco da isFinal = cose\n");
                 free(ACK);
+                printf("esco dalla free dell'ack\n");
             }
             else
                 printf("ho ricevuto un datagramma invece che un ack\n");
@@ -533,11 +542,13 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
             isFinal = packet.isFinal;
+            //printf("valore di isFinal ricevuto = %d\n", isFinal);
             //----------------------------------------------------------------
             if(isFinal == 0)
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
-            else if(isFinal == 1)
+            else if(isFinal == 1) {
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
+            }
             //----------------------------------------------------------------
 
             if(!ackreceived)
@@ -620,9 +631,10 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 perror("error in malloc");
             else
             {
-                printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
+                //printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
                 finish = pm->isFinal;
-                printf("valore di finish (SENDER) = %u\n", finish);
+                if(finish == 1)
+                    printf("valore di finish (SENDER) = %u\n", finish);
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;
                 sendACK(socketfd, ACK, servAddr, servLen);

@@ -9,7 +9,7 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 50000
+#define NANOSLEEP 500000
 
 #define PULLDIR "/home/giogge/Documenti/clientHome/"
 
@@ -333,11 +333,6 @@ void listPullListener(int fd, int command)
 
 }
 
-void pullListener()
-{
-    //aspetto datagrammi
-}
-
 int checkUserInput(char * buffer)
 {
     ssize_t res;
@@ -402,6 +397,7 @@ void pushListener()
     sendSignalThread(&condMTX2, &senderCond);
     waitForFirstPacketPush();
     waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
+    printf("--------------SONO USCITO-------------------\n\n\n\n");
 }
 
 void pushSender()
@@ -446,14 +442,7 @@ void pushSender()
                 retransmitForPush(fd, &rtx);
             }
         }
-        if (isFinal != 0)
-        {
-            if(checkPipe(&rtx, pipeFd[0]) != 0)
-            {
-                retransmitForPush(fd, &rtx);
-            }
-        }
-        else
+        if(isFinal == 0)
         {
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
@@ -463,19 +452,26 @@ void pushSender()
                 {
                     finalSeq = seqnum;
                     isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n\n\n\n", (int) readByte);
                 }
                 sndPacket.isFinal = (short) isFinal;
                 sndPacket.ackSeqNum = details.remoteSeq;
                 sndPacket.seqNum = seqnum;
                 sndPacket.opID = globalOpID;
-                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
+                //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
                 seqnum = details.mySeq;
             }
             else
                 retransmitForPush(fd, &rtx);
+        }
+        else
+        {
+            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            {
+                retransmitForPush(fd, &rtx);
+            }
         }
     }
     memset(sndPacket.content, 0, 512);
