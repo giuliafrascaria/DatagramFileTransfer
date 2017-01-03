@@ -527,6 +527,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     int isFinal = 0;
     datagram packet;
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+    int ackreceived = 0;
     while(isFinal != -1)
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
@@ -539,7 +540,12 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
             //----------------------------------------------------------------
 
-            //ackSentPacket(packet.ackSeqNum); //perchè stava qui ??????   <<--------------------------------<   ???????
+            if(!ackreceived)
+            {
+                ackSentPacket(packet.ackSeqNum);
+                ackreceived = 1;
+            }
+
 
             details.remoteSeq = packet.seqNum;
             tellSenderSendACK(packet.seqNum, packet.isFinal);
