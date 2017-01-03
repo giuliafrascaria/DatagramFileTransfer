@@ -9,7 +9,7 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 50000
 
 #define PULLDIR "/home/giogge/Documenti/clientHome/"
 

@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -412,6 +412,7 @@ int ls()
 
 int receiveFirstDatagram(char * content)
 {
+    printf("sono in receiveFirstDatagram\n");
     int fd;
     char * fileName;
     char *s = malloc(100);
@@ -423,16 +424,6 @@ int receiveFirstDatagram(char * content)
     {
         perror("1: error in reading words from standard input, first sscanf push");
     }
-    //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
-
-    char * pathsimone = "/pushObjects/";  //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
-    strcat(pathsimone, s);
-    if(pathsimone == NULL)
-    {
-        perror("error in malloc");
-    }
-    sprintf(pathsimone, "pushObjects vecchio /%s", s);
-    printf("file da aprire vecchio: %s\n", pathsimone);
 
     //GIULIA
     fileName = malloc(512);
@@ -440,16 +431,21 @@ int receiveFirstDatagram(char * content)
     {
         perror("error in malloc");
     }
-    strcat(fileName, LSDIR);
-    strcat(fileName, content);
+    sprintf(fileName, "%s%s", LSDIR, content);
 
     printf("|    path nuovo: %s \n", fileName);
     printf("file da aprire: %s\n", fileName);
 
-    if((fd = open(fileName, O_RDWR | O_TRUNC | O_CREAT, 77777) == -1))
+    if((fd = open(fileName, O_RDWR | O_TRUNC | O_CREAT, 0777)) == -1)
     {
         perror("error in opening/creating file");
     }
+
+    if ((lseek(fd, 0L, SEEK_SET)) == -1)
+    {
+        perror("TE LO AVEVO DETTO");
+    }
+
     return fd;
 }
 

@@ -532,7 +532,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
             isFinal = packet.isFinal;
-
             //----------------------------------------------------------------
             if(isFinal == 0)
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
@@ -567,10 +566,10 @@ int checkWindowSendBase()
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
-    printf("seqnum = %d, firstnum = %d\n\n\n", seqnum, firstnum);
+    //printf("\nseqnum = %d, firstnum = %d\n", seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-        printf("faccio una lseek\n");
+        //printf("faccio una lseek\n");
         if ((lseek(file, offset * 512, SEEK_SET)) == -1)
         {
             perror("1: lseek error");
@@ -578,7 +577,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     }
 
     if (write(file, content, len) == -1) {
-        perror("error in write");
+        perror("error in writeOnFile");
     }
 }
 
