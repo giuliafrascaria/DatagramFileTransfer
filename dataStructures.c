@@ -16,7 +16,7 @@ extern struct details details;
 extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
-extern volatile int currentTimeSlot;
+extern volatile int currentTimeSlot, finalLen;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
@@ -526,7 +526,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
 {
     int isFinal = 0;
     datagram packet;
-    int firstPacket = details.remoteSeq + 1;//          lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+    int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     while(isFinal != -1)
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
@@ -534,10 +534,13 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
             isFinal = packet.isFinal;
 
             //----------------------------------------------------------------
-            writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
+            if(isFinal == 0)
+                writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
+            else if(isFinal == 1)
+                writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
             //----------------------------------------------------------------
 
-            ackSentPacket(packet.ackSeqNum);
+            //ackSentPacket(packet.ackSeqNum); //perchè stava qui ??????   <<--------------------------------<   ???????
 
             details.remoteSeq = packet.seqNum;
             tellSenderSendACK(packet.seqNum, packet.isFinal);
@@ -564,17 +567,16 @@ int checkWindowSendBase()
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
-
-    if(firstnum != 0)//-----------------------------------------------è a 0 nella list
+printf("seqnum = %d, firstnum = %d\n\n\n", seqnum, firstnum);
+    if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-        if (lseek(file, offset * 512, SEEK_SET) == -1)
-        {
+        printf("faccio una lseek\n");
+        if ((lseek(file, offset * 512, SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
     }
 
-    if (write(file, content, len) == -1)
-    {
+    if (write(file, content, len) == -1) {
         perror("error in write");
     }
 }

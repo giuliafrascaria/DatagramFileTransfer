@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -110,6 +110,7 @@ void * sendFunction()
             //sendCycle(2);
         }
         else if(packet.command == 1){
+            printf("è una push\n");
             ACKandRTXcycle(details.sockfd2, &details.addr2, details.Size2);
         }
     }
@@ -174,10 +175,11 @@ void listenCycle()
                 else if (packet.command == 1)
                 {
                     sendSignalThread(&condMTX2, &senderCond);
+                    details.remoteSeq = packet.seqNum;
                     int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, 1);
-                    printf("sono arrivato fino a qui\n");
-                    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
+                    printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
+                    getResponse(details.sockfd, &(details.addr), &(details.Size), fd);
                 }
 
                 timeout = 0;
@@ -417,9 +419,14 @@ int receiveFirstDatagram(char * content)
     if (sscanf(content, "%s %d", s, &finalLen) == EOF) {
         perror("1: error in reading words from standard input, first sscanf push");
     }
-    char * path = "/pushObjects/";  //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
-    strcat(path, s);
-    if((fd = open(path, O_RDWR | O_TRUNC | O_CREAT, 777) == -1)){
+    //     <<----------------------------------------------< DA CAMBIARE ASSOLUTAMENTE
+    char * path = malloc(100);
+    if(path == NULL){
+        perror("error in malloc");
+    }
+    sprintf(path, "pushObjects/%s", s);
+    printf("file da aprire: %s\n", path);
+    if((fd = open(path, O_RDWR | O_TRUNC | O_CREAT, 77777) == -1)){
         perror("error in opening/creating file");
     }
     return fd;
@@ -464,7 +471,7 @@ void sendCycle(int command)
             {
                 printf("ritrasmetto\n");
                 memset(sndPacket.content, 0, 512);
-                if(lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET) == -1){
+                if((lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET)) == -1){
                     perror("errore in lseek");
                 }
                 if(read(fd, sndPacket.content, 512)==-1){

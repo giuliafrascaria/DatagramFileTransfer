@@ -21,7 +21,7 @@ int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
 volatile int currentTimeSlot, globalOpID;
-volatile int fdList;
+volatile int fdList, finalLen;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
 
@@ -428,13 +428,15 @@ void pushSender()
         perror("error in sprintf");
     }
 
-    printf("sono arrivato fin qui, la stringa da inviare è %s\n", sndPacket.content);
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, seqnum);
+    sndPacket.seqNum = seqnum;
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacket();
+    seqnum = details.mySeq;
 
-    printf("sono arrivato dopo waitForFirstPacket\n\n");
+    isFinal = 0;
     while(details.sendBase != finalSeq || isFinal == 0)
     {
         while(seqnum%WINDOWSIZE - details.sendBase > 256)
@@ -444,7 +446,7 @@ void pushSender()
                 retransmitForPush(fd, &rtx);
             }
         }
-        if (isFinal == 1)
+        if (isFinal != 0)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
