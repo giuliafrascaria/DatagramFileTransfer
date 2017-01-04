@@ -166,9 +166,9 @@ int getFileLen(int fd);
 
 char * stringParser(char * string);
 
-void waitForFirstPacket();
+void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void waitForFirstPacketPush();
+void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
 //----------------------------------------------------------------------------------------------------------------------
 

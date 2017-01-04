@@ -170,7 +170,7 @@ void listenCycle()
                 printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
-                    waitForFirstPacketPush();
+                    waitForFirstPacketListener(details.sockfd, &(details.addr), details.Size);
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
                 }
                 else if (packet.command == 1)
@@ -496,7 +496,7 @@ void sendCycle(int command)
     sndPacket.isFinal = 1;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
-    waitForFirstPacket();
+    waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
 
     int seqnum = details.mySeq;
     int finalSeq = -1;

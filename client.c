@@ -28,9 +28,7 @@ datagram packet;
 
 void retransmitForPush(int fd, struct pipeMessage * rtx);
 void pushSender();
-void waitForFirstPacket();
 void clientSendFunction();
-void waitForFirstPacketPush();
 void * clientListenFunction();
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
@@ -405,7 +403,7 @@ void pushListener()
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);
-    waitForFirstPacketPush();
+    waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
     waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
     printf("--------------SONO USCITO-------------------\n\n\n\n");
 }
@@ -440,7 +438,7 @@ void pushSender()
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
-    waitForFirstPacket();
+    waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     seqnum = details.mySeq;
 
     isFinal = 0;

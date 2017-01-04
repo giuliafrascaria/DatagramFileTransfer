@@ -701,7 +701,7 @@ char * stringParser(char * string)
     return sToReturn;
 }
 
-void waitForFirstPacket()
+void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     int finish = 0;
     struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
@@ -718,16 +718,16 @@ void waitForFirstPacket()
         else if (checkPipe(pm, pipeFd[0]) == 1)
         {
             datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(details.sockfd, &details.addr, details.Size, packetRTX);
+            sendDatagram(socketfd, servAddr, servLen, packetRTX);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }
     }
 }
 
-void waitForFirstPacketPush()
+void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
-    while(receiveACK(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2) == 0){}
+    while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
 
     handshake ack;
     ack.isFinal = 1;
