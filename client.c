@@ -447,17 +447,19 @@ void pushSender()
     seqnum = details.mySeq;
     isFinal = 0;
 
-    while(sndbase != finalSeq || isFinal == 0)
+    while(((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
     {
-        while(seqnum%WINDOWSIZE - details.sendBase > 256)
+        while(isFinal == 0)
         {
-            if(checkPipe(&rtx, pipeFd[0]) != 0)
+            sndbase = details.sendBase;
+            while(seqnum%WINDOWSIZE - sndbase%WINDOWSIZE > 256)
             {
-                retransmitForPush(fd, &rtx);
+                if(checkPipe(&rtx, pipeFd[0]) != 0)
+                {
+                    retransmitForPush(fd, &rtx);
+                }
+                sndbase = details.sendBase;
             }
-        }
-        if(isFinal == 0)
-        {
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
                 memset(sndPacket.content, 0, 512);
@@ -466,7 +468,7 @@ void pushSender()
                 {
                     finalSeq = seqnum;
                     isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n\n\n\n", (int) readByte);
+                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
                 }
                 sndPacket.isFinal = (short) isFinal;
                 sndPacket.ackSeqNum = details.remoteSeq;
@@ -480,15 +482,15 @@ void pushSender()
             else
                 retransmitForPush(fd, &rtx);
         }
-        else
+
+        //PROTEGGI CON I MUTEX
+        sndbase = details.sendBase;
+        if (((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
         {
-            if(checkPipe(&rtx, pipeFd[0]) != 0)
-            {
+            if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
         }
-        //PROTEGGI CON I MUTEX
-        sndbase = details.sendBase;
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;

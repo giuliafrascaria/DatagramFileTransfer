@@ -175,10 +175,7 @@ void listenCycle()
                 }
                 else if (packet.command == 1)
                 {
-                    //sendSignalThread(&condMTX2, &senderCond);
-                    //details.remoteSeq = packet.seqNum;
                     int fd = receiveFirstDatagram(packet.content);
-
                     tellSenderSendACK(packet.seqNum, 1);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd);

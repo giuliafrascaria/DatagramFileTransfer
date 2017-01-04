@@ -549,6 +549,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
             else if(isFinal == 1) {
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
+                printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
             }
             //----------------------------------------------------------------
 
@@ -639,15 +640,14 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;
                 sendACK(socketfd, ACK, servAddr, servLen);
-                printf("ACK INVIATO \n");
             }
             memset(pm, 0, sizeof(struct pipeMessage));
         }
         if (checkPipe(pm, pipeFd[0]) == 1)
         {
             //datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(socketfd, servAddr, servLen, &packet);
-            memset(pm, 0, sizeof(struct pipeMessage));
+            //sendDatagram(socketfd, servAddr, servLen, &packet);
+            //memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }
     }
