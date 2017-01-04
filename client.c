@@ -89,6 +89,7 @@ void clientSendFunction()
         if(packet.command == 0 || packet.command == 2)
         {
             sendDatagram(details.sockfd, &details.addr, details.Size, &packet);
+            printf("pacchetto inviato \n\n");
             ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
         }
         else
@@ -336,6 +337,7 @@ void listPullListener(int fd, int command)
     }
     printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
 
+    tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
 

@@ -501,10 +501,11 @@ void sendCycle(int command)
     int seqnum = details.mySeq;
     int finalSeq = -1;
     int isFinal = 0;
+    int sndBase = details.sendBase;
     ssize_t readByte;
 
     struct pipeMessage rtx;
-    while(details.sendBase != finalSeq || isFinal == 0)
+    while(sndBase != finalSeq || isFinal == 0)
     {
         while(seqnum%WINDOWSIZE - details.sendBase > 256)
         {
@@ -560,6 +561,7 @@ void sendCycle(int command)
                 printf("ritrasmetti\n");
             }
         }
+        sndBase = details.sendBase;
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;

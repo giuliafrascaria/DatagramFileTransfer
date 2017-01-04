@@ -405,13 +405,10 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             if (msgLen == sizeof(handshake))
             {
                 ACK = (handshake *) buffer;
-                //printf("ricevuto ack\n");
                 ackSentPacket(ACK->sequenceNum);
-                //printf("esco da acksentpacket\n");
                 isFinal = ACK->isFinal;
-                //printf("esco da isFinal = cose\n");
+                printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
-                //printf("esco dalla free dell'ack\n");
             }
             else
             {
@@ -642,6 +639,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;
                 sendACK(socketfd, ACK, servAddr, servLen);
+                printf("ACK INVIATO \n");
             }
             memset(pm, 0, sizeof(struct pipeMessage));
         }
@@ -720,6 +718,7 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 {
     while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
 
+    printf("sono uscito da qui \n\n\n");
     handshake ack;
     ack.isFinal = 1;
     if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
