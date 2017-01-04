@@ -11,7 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 5000000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -266,6 +267,9 @@ void parseInput(char * s)
         printf("'pull'\n");
 
         char * content = malloc(500);
+        if(content == NULL)
+            perror("error on malloc");
+
         char * fileName;
         int fdPull;
 
@@ -323,13 +327,14 @@ void listPullListener(int fd, int command)
 
     //aspetto il pacchetto con le dimensioni per settare finallen
     datagram firstDatagram;
-    while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1)
-    {}
+    while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
+
+    printf("faccio un sscanf\n");
     if(sscanf(firstDatagram.content, "%d", &finalLen) == EOF)
     {
         perror("error on scanf");
     }
-    printf("ho ricevuto la lunghezza del pacchetto finale\n\n");
+    printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
 
     //aspetto datagrammi
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
@@ -392,7 +397,6 @@ void printfListInSTDOUT()
 
 void pushListener()
 {
-    //aspetto ack
     //---------------------proteggere con mutex
     packet.command = 1;
     packet.isFinal = 0;
@@ -410,14 +414,13 @@ void pushListener()
 
 void pushSender()
 {
-    int seqnum = details.mySeq, finalSeq = -1, isFinal = 0;
+    int seqnum = details.mySeq, finalSeq = -1, isFinal = 0, sndbase = 0;
     ssize_t readByte;
     datagram sndPacket;
     struct pipeMessage rtx;
 
     int fd = open(packet.content, O_RDONLY);
-    if(fd == -1)
-    {
+    if(fd == -1){
         perror("error in open");
     }
 
@@ -440,9 +443,9 @@ void pushSender()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     seqnum = details.mySeq;
-
     isFinal = 0;
-    while(details.sendBase != finalSeq || isFinal == 0)
+
+    while(sndbase != finalSeq || isFinal == 0)
     {
         while(seqnum%WINDOWSIZE - details.sendBase > 256)
         {
@@ -482,6 +485,8 @@ void pushSender()
                 retransmitForPush(fd, &rtx);
             }
         }
+        //PROTEGGI CON I MUTEX
+        sndbase = details.sendBase;
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
@@ -493,10 +498,12 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
 {
     printf("ritrasmetto\n");
     datagram sndPacket;
-    if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1){
+    if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1)
+    {
         perror("errore in lseek");
     }
-    if(read(fd, sndPacket.content, 512)==-1){
+    if(read(fd, sndPacket.content, 512)==-1)
+    {
         perror("error in read");
     }
 

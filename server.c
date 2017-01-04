@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 5000000
+#define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -175,8 +175,8 @@ void listenCycle()
                 }
                 else if (packet.command == 1)
                 {
-                    sendSignalThread(&condMTX2, &senderCond);
-                    details.remoteSeq = packet.seqNum;
+                    //sendSignalThread(&condMTX2, &senderCond);
+                    //details.remoteSeq = packet.seqNum;
                     int fd = receiveFirstDatagram(packet.content);
 
                     tellSenderSendACK(packet.seqNum, 1);
@@ -475,7 +475,6 @@ void sendCycle(int command)
         }
         printf("sprintf result %s\n\n", absolutepath);
         fd = openFile(absolutepath);
-
     }
 
     int len = getFileLen(fd);
@@ -490,12 +489,13 @@ void sendCycle(int command)
         perror("error in sprintf");
     }
 
-    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
+
     sndPacket.seqNum = details.mySeq;
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
 
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
     waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
 
     int seqnum = details.mySeq;

@@ -93,9 +93,7 @@ int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int so
     }
     else if(res > 0)
     {
-        printf("ho ricevuto un datagramma");
         return 1;
-
     }
     else
     {
@@ -165,7 +163,7 @@ void ackSentPacket(int ackN)
     }
 
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
-    printf("esco da acksentpacket\n");
+    //printf("esco da acksentpacket\n");
 }
 
 void printWindow()
@@ -242,7 +240,6 @@ void * timerFunction()
     printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
-
     for(;;)
     {
 
@@ -288,11 +285,7 @@ void * timerFunction()
             {
                 perror("error on usleep");
             }
-            /*if(i%500000 != 0)
-                i++;
-            else
-                printf("%d\n", i);
-*/
+
         }
         exit(EXIT_SUCCESS);
     }
@@ -414,11 +407,11 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 ACK = (handshake *) buffer;
                 //printf("ricevuto ack\n");
                 ackSentPacket(ACK->sequenceNum);
-                printf("esco da acksentpacket\n");
+                //printf("esco da acksentpacket\n");
                 isFinal = ACK->isFinal;
-                printf("esco da isFinal = cose\n");
+                //printf("esco da isFinal = cose\n");
                 free(ACK);
-                printf("esco dalla free dell'ack\n");
+                //printf("esco dalla free dell'ack\n");
             }
             else
             {
@@ -494,14 +487,13 @@ void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address
 
 int openFile(char * fileName)
 {
+    printf("sto aprendo il file : %s\n", fileName);
     int fd = open(fileName, O_RDONLY);
     if (fd == -1)
     {
         perror("1: error on open file, retransmission");
         fd = open(fileName, O_RDONLY);
-
     }
-
     return fd;
 }
 
@@ -555,7 +547,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
             isFinal = packet.isFinal;
-            //printf("valore di isFinal ricevuto = %d\n", isFinal);
             //----------------------------------------------------------------
             if(isFinal == 0)
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
@@ -569,7 +560,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 ackSentPacket(packet.ackSeqNum);
                 ackreceived = 1;
             }
-            
+
 
             details.remoteSeq = packet.seqNum;
             tellSenderSendACK(packet.seqNum, packet.isFinal);
