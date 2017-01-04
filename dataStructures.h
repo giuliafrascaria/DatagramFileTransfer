@@ -162,6 +162,14 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
 
+int getFileLen(int fd);
+
+char * stringParser(char * string);
+
+void waitForFirstPacket();
+
+void waitForFirstPacketPush();
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

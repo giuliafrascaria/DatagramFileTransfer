@@ -105,6 +105,8 @@ void * sendFunction()
             details.firstSeqNum = details.mySeq;
 
             printf("\n\nè una pull di %s\n\n", packet.content);
+
+
             sendCycle(2);
         }
         else if(packet.command == 1){
@@ -168,6 +170,7 @@ void listenCycle()
                 printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
+                    waitForFirstPacketPush();
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
                 }
                 else if (packet.command == 1)
@@ -451,6 +454,7 @@ void sendCycle(int command)
 {
     printf("sono il sender del server, sto per fare la list o la pull\n");
     int fd;
+    datagram sndPacket;
 
     if(command == 0)
     {
@@ -474,11 +478,31 @@ void sendCycle(int command)
 
     }
 
+    int len = getFileLen(fd);
+    memset(sndPacket.content, 0, 512);
+    char * s = malloc(100);
+    if(s == NULL){
+        perror("error in malloc");
+    }
+    //s = stringParser(packet.content);
+    if(sprintf(sndPacket.content, "%d", len) < 0)
+    {
+        perror("error in sprintf");
+    }
+
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
+    sndPacket.seqNum = details.mySeq;
+    sndPacket.command = 1;
+    sndPacket.isFinal = 1;
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+
+    waitForFirstPacket();
+
     int seqnum = details.mySeq;
     int finalSeq = -1;
     int isFinal = 0;
     ssize_t readByte;
-    datagram sndPacket;
+
     struct pipeMessage rtx;
     while(details.sendBase != finalSeq || isFinal == 0)
     {

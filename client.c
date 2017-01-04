@@ -323,6 +323,16 @@ void listPullListener(int fd, int command)
 
     sendSignalThread(&condMTX2, &senderCond);
 
+    //aspetto il pacchetto con le dimensioni per settare finallen
+    datagram firstDatagram;
+    while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1)
+    {}
+    if(sscanf(firstDatagram.content, "%d", &finalLen) == EOF)
+    {
+        perror("error on scanf");
+    }
+    printf("ho ricevuto la lunghezza del pacchetto finale\n\n");
+
     //aspetto datagrammi
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
 
@@ -408,7 +418,8 @@ void pushSender()
     struct pipeMessage rtx;
 
     int fd = open(packet.content, O_RDONLY);
-    if(fd == -1){
+    if(fd == -1)
+    {
         perror("error in open");
     }
 
@@ -480,54 +491,6 @@ void pushSender()
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 
-int getFileLen(int fd)
-{
-
-    ssize_t len = lseek(fd, 0L, SEEK_END);
-    if(len == -1){
-        perror("error in lseek");
-    }
-    if(lseek(fd, 0L, SEEK_SET) == -1){
-        perror("error in lseek");
-    }
-    return (int) len;
-}
-
-void waitForFirstPacket()
-{
-    int finish = 0;
-    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
-    if(pm == NULL)
-        perror("error in malloc");
-
-    while(finish != -1)
-    {
-        if (checkPipe(pm, pipeSendACK[0]) == 1)
-        {
-            finish = -1;
-            free(pm);
-        }
-        else if (checkPipe(pm, pipeFd[0]) == 1)
-        {
-            datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(details.sockfd, &details.addr, details.Size, packetRTX);
-            memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto\n");
-        }
-    }
-}
-
-void waitForFirstPacketPush()
-{
-    while(receiveACK(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2) == 0){}
-
-    handshake ack;
-    ack.isFinal = 1;
-    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1){
-        perror("error in write on pipe");
-    }
-}
-
 void retransmitForPush(int fd, struct pipeMessage * rtx)
 {
     printf("ritrasmetto\n");
@@ -544,14 +507,6 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     sndPacket.seqNum = rtx->seqNum;
     sndPacket.opID = globalOpID;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
-}
-
-char * stringParser(char * string)
-{
-    char * sToReturn  = malloc(512);
-    char* start=strrchr(string,'/'); /* Find the last '/' */
-    strcpy(sToReturn, start+1);
-    return sToReturn;
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE

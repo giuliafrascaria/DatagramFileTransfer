@@ -93,7 +93,9 @@ int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int so
     }
     else if(res > 0)
     {
+        printf("ho ricevuto un datagramma");
         return 1;
+
     }
     else
     {
@@ -240,7 +242,7 @@ void * timerFunction()
     printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
-    int i = 0;
+
     for(;;)
     {
 
@@ -676,3 +678,61 @@ datagram * rebuildDatagram(struct pipeMessage pm)
     return packet;
 }
 
+int getFileLen(int fd)
+{
+
+    ssize_t len = lseek(fd, 0L, SEEK_END);
+    if(len == -1){
+        perror("error in lseek");
+    }
+    if(lseek(fd, 0L, SEEK_SET) == -1){
+        perror("error in lseek");
+    }
+    len = len%512;
+    printf("ho calcolato la grandezza del file\n");
+    return (int) len;
+}
+
+char * stringParser(char * string)
+{
+    char * sToReturn  = malloc(512);
+    char* start = strrchr(string,'/'); /* Find the last '/' */
+    strcpy(sToReturn, start+1);
+    return sToReturn;
+}
+
+void waitForFirstPacket()
+{
+    int finish = 0;
+    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
+    if(pm == NULL)
+        perror("error in malloc");
+
+    while(finish != -1)
+    {
+        if (checkPipe(pm, pipeSendACK[0]) == 1)
+        {
+            finish = -1;
+            free(pm);
+        }
+        else if (checkPipe(pm, pipeFd[0]) == 1)
+        {
+            datagram * packetRTX = rebuildDatagram(*pm);
+            sendDatagram(details.sockfd, &details.addr, details.Size, packetRTX);
+            memset(pm, 0, sizeof(struct pipeMessage));
+            printf("\n\nritrasmetto\n");
+        }
+    }
+}
+
+void waitForFirstPacketPush()
+{
+    while(receiveACK(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2) == 0){}
+
+    handshake ack;
+    ack.isFinal = 1;
+    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
+    {
+        perror("error in write on pipe");
+    }
+}
