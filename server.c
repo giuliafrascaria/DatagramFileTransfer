@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 5000000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -38,8 +38,6 @@ pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
 void sendCycle(int command);
-void retransmitForList(int fd, struct pipeMessage * rtx);
-void lsSendCycle();
 void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
@@ -107,7 +105,7 @@ void * sendFunction()
             details.firstSeqNum = details.mySeq;
 
             printf("\n\nè una pull di %s\n\n", packet.content);
-            //sendCycle(2);
+            sendCycle(2);
         }
         else if(packet.command == 1){
             printf("è una push\n");
@@ -461,15 +459,17 @@ void sendCycle(int command)
     else
     {
         //bisogna fare la pull del file scritto nel pacchetto
-        char * absolutepath = malloc(50);
+        char * absolutepath = malloc(512);
         if (absolutepath == NULL)
         {
             perror("error in path malloc");
         }
 
-        strcat(absolutepath, LSDIR);
-        strcat(absolutepath, packet.content);
-        printf("%s\n\n", packet.content);
+        if(sprintf(absolutepath, "%s%s", LSDIR, packet.content) == -1)
+        {
+            perror("error on sprintf");
+        }
+        printf("sprintf result %s\n\n", absolutepath);
         fd = openFile(absolutepath);
 
     }

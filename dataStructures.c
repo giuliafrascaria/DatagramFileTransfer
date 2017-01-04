@@ -17,6 +17,7 @@ extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
 extern volatile int currentTimeSlot, finalLen;
+extern datagram packet;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
@@ -285,11 +286,11 @@ void * timerFunction()
             {
                 perror("error on usleep");
             }
-            if(i%500000 != 0)
+            /*if(i%500000 != 0)
                 i++;
             else
                 printf("%d\n", i);
-
+*/
         }
         exit(EXIT_SUCCESS);
     }
@@ -418,7 +419,14 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 printf("esco dalla free dell'ack\n");
             }
             else
-                printf("ho ricevuto un datagramma invece che un ack\n");
+            {
+                printf("ho ricevuto un datagramma invece che un ack, mando l'ack\n");
+                datagram * duplicatePacket;
+                duplicatePacket = (datagram *) buffer;
+                tellSenderSendACK(duplicatePacket->seqNum, duplicatePacket->isFinal);
+            }
+
+
         }
     }
 
@@ -485,10 +493,13 @@ void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address
 int openFile(char * fileName)
 {
     int fd = open(fileName, O_RDONLY);
-    while (fd == -1) {
+    if (fd == -1)
+    {
         perror("1: error on open file, retransmission");
         fd = open(fileName, O_RDONLY);
+
     }
+
     return fd;
 }
 
@@ -556,7 +567,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 ackSentPacket(packet.ackSeqNum);
                 ackreceived = 1;
             }
-
+            
 
             details.remoteSeq = packet.seqNum;
             tellSenderSendACK(packet.seqNum, packet.isFinal);
@@ -643,8 +654,8 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
         }
         if (checkPipe(pm, pipeFd[0]) == 1)
         {
-            datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(socketfd, servAddr, servLen, packetRTX);
+            //datagram * packetRTX = rebuildDatagram(*pm);
+            sendDatagram(socketfd, servAddr, servLen, &packet);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }
