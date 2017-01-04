@@ -80,6 +80,7 @@ void clientSendFunction()
 
     for(;;)
     {
+        printf("sono il sender e mi metto in condWait\n");
         if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
         {
             perror("error in sender cond wait");

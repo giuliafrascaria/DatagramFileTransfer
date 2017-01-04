@@ -142,7 +142,7 @@ void sentPacket(int packetN, int retransmission)
 
 void ackSentPacket(int ackN)
 {
-    printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n", ackN);
+    //printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n", ackN);
 
     mtxLock(&(selectiveWnd[ackN % windowSize]).cellMtx);
 
@@ -366,7 +366,7 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
     }
-    printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
+    //printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
@@ -378,7 +378,7 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         perror("error in sending data\n");
         exit(EXIT_FAILURE);
     }
-    printf("sent ACK number %d\n", ACK->sequenceNum);
+    //printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
@@ -407,7 +407,7 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 ACK = (handshake *) buffer;
                 ackSentPacket(ACK->sequenceNum);
                 isFinal = ACK->isFinal;
-                printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
+                //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
             else
