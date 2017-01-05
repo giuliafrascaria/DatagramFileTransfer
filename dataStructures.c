@@ -653,8 +653,9 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             {
                 //printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
                 finish = pm->isFinal;
-                if(finish == 1)
-                    printf("valore di finish (SENDER) = %u\n", finish);
+                if(finish == 1) {
+                    printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
+                }
                 ACK->isFinal = pm->isFinal;
                 ACK->sequenceNum = pm->seqNum;
                 sendACK(socketfd, ACK, servAddr, servLen);

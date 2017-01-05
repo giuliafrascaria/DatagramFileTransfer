@@ -523,9 +523,9 @@ void pushSender()
                 readByte = read(fd, sndPacket.content, 512);
                 if (readByte < 512 && readByte >= 0)
                 {
-                    finalSeq = seqnum;
+                    finalSeq = details.mySeq;
                     isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d, numero di sequenza : %d)\n", (int) readByte, finalSeq);
                 }
                 sndPacket.isFinal = (short) isFinal;
 
