@@ -5,14 +5,15 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/sendfile.h>
+#include <sys/time.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -22,7 +23,7 @@ int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
 volatile int globalTimerStop = 0;
-volatile int currentTimeSlot, globalOpID;
+volatile int globalOpID;
 volatile int fdList, finalLen;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
@@ -53,6 +54,7 @@ struct details details;
 pthread_t listenThread, timerThread;
 struct selectCell selectiveWnd[WINDOWSIZE];
 
+pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
@@ -205,10 +207,14 @@ void listenCycle()
 
     for(;;)
     {
-        globalTimerStop = 0;  //PROTEGGI CON MUTEX      <<----------------------------------------<
+        mtxLock(&syncMTX);
+        globalTimerStop = 0;
+        mtxUnlock(&syncMTX);
+
         memset(&packet, 0, sizeof(datagram));
         res = 0;
         printf("insert command : \n");
+        struct timespec opStart, opEnd;
 
         while(!res)
         {
@@ -227,10 +233,20 @@ void listenCycle()
             }
             else
             {
+                //prendo un timestamp
+                clock_gettime(CLOCK_REALTIME, &opStart);
+
                 printf("processing request\n");
                 sendSignalTimer();
                 parseInput(s);
                 timeout = 0;
+
+                clock_gettime(CLOCK_REALTIME, &opEnd);
+
+                printf("\n\n\n------------------------------------------------\n");
+                printf("|\toperazione completata in %lu millisecondi\t| \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
+                printf("------------------------------------------------\n");
+                printf("\n\n");
                 //provvisorio
                 //poi mi devo mettere a sentire i dati ricevuti dalla socket
                 //res = 0;
@@ -332,7 +348,11 @@ void listPullListener(int fd, int command)
     packet.command = command;
     packet.isFinal = 1;
     packet.opID =  rand() % 2048;
+
+    mtxLock(&syncMTX);
     globalOpID = packet.opID;
+    mtxUnlock(&syncMTX);
+
     packet.seqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
@@ -344,11 +364,14 @@ void listPullListener(int fd, int command)
     while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
 
     printf("faccio un sscanf\n");
+
+    mtxLock(&syncMTX);
     if(sscanf(firstDatagram.content, "%d", &finalLen) == EOF)
     {
         perror("error on scanf");
     }
     printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
+    mtxUnlock(&syncMTX);
 
     tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
@@ -418,7 +441,11 @@ void pushListener()
     packet.command = 1;
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
+
+    mtxLock(&syncMTX);
     globalOpID = packet.opID;
+    mtxUnlock(&syncMTX);
+
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
@@ -504,7 +531,11 @@ void pushSender()
                 mtxUnlock(&mtxPacketAndDetails);
 
                 sndPacket.seqNum = seqnum;
+
+                mtxLock(&syncMTX);
                 sndPacket.opID = globalOpID;
+                mtxUnlock(&syncMTX);
+
                 //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
@@ -560,7 +591,10 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     mtxUnlock(&mtxPacketAndDetails);
 
     sndPacket.seqNum = rtx->seqNum;
+
+    mtxLock(&syncMTX);
     sndPacket.opID = globalOpID;
+    mtxUnlock(&syncMTX);
 
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 }

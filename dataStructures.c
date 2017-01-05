@@ -16,12 +16,15 @@ extern struct details details;
 extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
-extern volatile int currentTimeSlot, finalLen, globalTimerStop;
+extern volatile int finalLen, globalTimerStop;
 extern datagram packet;
 extern int globalOpID;
 
-pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
+extern pthread_mutex_t syncMTX;
 
+volatile int currentTimeSlot;
+
+pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condTimerSleep = PTHREAD_COND_INITIALIZER;
 
@@ -247,15 +250,20 @@ void * timerFunction()
     {
 
         initTimerWheel();
+        mtxLock(&currentTSMTX);
         currentTimeSlot = 0;
+        mtxUnlock(&currentTSMTX);
 
         if(pthread_cond_wait(&condTimerSleep, &mtxTimerSleep) == -1)
         {
             perror("error in cond_wait timer");
         }
 
-        while(globalTimerStop == 1) {
+        while(readGlobalTimerStop() == 1)
+        {
+            mtxLock(&currentTSMTX);
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
+            mtxUnlock(&currentTSMTX);
 
             while (currentTimer != NULL) {
 
@@ -283,21 +291,29 @@ void * timerFunction()
     }
 }
 
+int readGlobalTimerStop()
+{
+    mtxLock(&syncMTX);
+    int var = globalTimerStop;
+    mtxUnlock(&syncMTX);
+    return var;
+}
+
 void clockTick()
 {
-    mtxLock(&posinwheelMTX);
+    mtxLock(&currentTSMTX);
 
     currentTimeSlot = (currentTimeSlot + 1) % timerSize;
 
-    mtxUnlock(&posinwheelMTX);
+    mtxUnlock(&currentTSMTX);
 }
 
 int getWheelPosition()
 {
-    mtxLock(&posinwheelMTX);
+    mtxLock(&currentTSMTX);
     int pos = (currentTimeSlot + offset)%timerSize;
 
-    mtxUnlock(&posinwheelMTX);
+    mtxUnlock(&currentTSMTX);
     //printf("timer will be set in position %d\n\n", pos);
     return(pos);
 }
@@ -531,11 +547,16 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     datagram packet;
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     int ackreceived = 0;
+
+    mtxLock(&syncMTX);
+    int opID = globalOpID;
+    mtxUnlock(&syncMTX);
+
     while(isFinal != -1)
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
-            if(packet.opID == globalOpID) {
+            if(packet.opID == opID) {
                 isFinal = packet.isFinal;
                 //----------------------------------------------------------------
                 if (isFinal == 0)
@@ -663,7 +684,10 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm)
     sndPacket.isFinal = pm.isFinal;
     sndPacket.ackSeqNum = details.remoteSeq;
     sndPacket.seqNum = pm.seqNum;
+
+    mtxLock(&syncMTX);
     sndPacket.opID = globalOpID;
+    mtxUnlock(&syncMTX);
 
     return sndPacket;
 }
@@ -731,7 +755,9 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 void sendSignalTimer()
 {
     //PROTEGGI CON MUTEX     <<-------------------------------------<
+    mtxLock(&syncMTX);
     globalTimerStop = 1;
+    mtxUnlock(&syncMTX);
     if(pthread_cond_signal(&condTimerSleep) == -1)
     {
         perror("error in cond_signal timer");

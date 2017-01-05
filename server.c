@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -22,7 +22,7 @@ int pipeFd[2];
 int pipeSendACK[2];
 datagram packet;
 
-volatile int finalLen, globalOpID, currentTimeSlot, globalTimerStop = 0;
+volatile int finalLen, globalOpID, globalTimerStop = 0;
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
@@ -30,6 +30,8 @@ struct details details;
 
 pthread_t timerThread;
 pthread_t senderThread;
+
+pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
@@ -148,7 +150,10 @@ void listenCycle()
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
-        globalTimerStop = 0; //PROTEGGERE CON I MUTEX   <<----------------------------------<;
+        mtxLock(&syncMTX);
+        globalTimerStop = 0;
+        mtxUnlock(&syncMTX);
+
         printf("\nsono il listener e ricomincio il ciclo\n");
         memset(&packet, 0, sizeof(datagram));
         int res = 0;
@@ -177,7 +182,11 @@ void listenCycle()
                 details.remoteSeq = packet.seqNum;
                 mtxUnlock(&mtxPacketAndDetails);
 
+
+                mtxLock(&syncMTX);
                 globalOpID = packet.opID;
+                mtxUnlock(&syncMTX);
+
                 sendSignalThread(&condMTX2, &senderCond);
                 printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
@@ -442,10 +451,13 @@ int receiveFirstDatagram(char * content)
     {
         perror("error in malloc");
     }
+
+    mtxLock(&syncMTX);
     if (sscanf(content, "%s %d", s, &finalLen) == EOF)
     {
         perror("1: error in reading words from standard input, first sscanf push");
     }
+    mtxUnlock(&syncMTX);
 
     //GIULIA
     fileName = malloc(512);
@@ -515,6 +527,7 @@ void sendCycle(int command)
     mtxLock(&mtxPacketAndDetails);
     sndPacket.seqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
+
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
@@ -572,7 +585,12 @@ void sendCycle(int command)
                 mtxUnlock(&mtxPacketAndDetails);
 
                 sndPacket.seqNum = seqnum;
+
+                mtxLock(&syncMTX);
                 sndPacket.opID = globalOpID;
+                mtxUnlock(&syncMTX);
+
+                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
                 seqnum = details.mySeq;
 
