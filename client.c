@@ -55,6 +55,7 @@ struct selectCell selectiveWnd[WINDOWSIZE];
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
@@ -145,9 +146,11 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     {
 
         //salvo i dettagli di connessione in details
+        mtxLock(&mtxPacketAndDetails);
         details.addr = *servAddr;
         details.Size = servLen;
         details.sockfd = socketfd;
+        mtxUnlock(&mtxPacketAndDetails);
 
         //segnalo al listener
         sendSignalThread(&condMTX, &secondConnectionCond);
@@ -165,8 +168,10 @@ void * clientListenFunction()
 {
     printf("listener thread attivato\n\n");
 
+    mtxLock(&mtxPacketAndDetails);
     details.Size2 = sizeof(struct sockaddr_in);
     details.sockfd2 = createSocket();
+    mtxUnlock(&mtxPacketAndDetails);
 
     if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
     {
@@ -283,8 +288,10 @@ void parseInput(char * s)
             free(content);
         }
 
+        mtxLock(&mtxPacketAndDetails);
         memset(packet.content, 0, 512);
         strcpy(packet.content, content);
+        mtxUnlock(&mtxPacketAndDetails);
 
         printf("richiesta di pull per il pacchetto %s\n", content);
 
@@ -321,11 +328,13 @@ void listPullListener(int fd, int command)
 {
 
     //---------------------proteggere con mutex
+    mtxLock(&mtxPacketAndDetails);
     packet.command = command;
     packet.isFinal = 1;
     packet.opID =  rand() % 2048;
     globalOpID = packet.opID;
     packet.seqNum = details.mySeq;
+    mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);
@@ -405,12 +414,14 @@ void printfListInSTDOUT()
 void pushListener()
 {
     //---------------------proteggere con mutex
+    mtxLock(&mtxPacketAndDetails);
     packet.command = 1;
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
     globalOpID = packet.opID;
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
+    mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);
@@ -421,15 +432,20 @@ void pushListener()
 
 void pushSender()
 {
+    mtxLock(&mtxPacketAndDetails);
     int seqnum = details.mySeq, finalSeq = -1, isFinal = 0, sndbase = 0;
+    mtxUnlock(&mtxPacketAndDetails);
+
     ssize_t readByte;
     datagram sndPacket;
     struct pipeMessage rtx;
 
+    mtxLock(&mtxPacketAndDetails);
     int fd = open(packet.content, O_RDONLY);
     if(fd == -1){
         perror("error in open");
     }
+    mtxUnlock(&mtxPacketAndDetails);
 
     int len = getFileLen(fd);
     memset(sndPacket.content, 0, 512);
@@ -456,14 +472,19 @@ void pushSender()
     {
         while(isFinal == 0)
         {
+            mtxLock(&mtxPacketAndDetails);
             sndbase = details.sendBase;
+            mtxUnlock(&mtxPacketAndDetails);
+
             while(seqnum%WINDOWSIZE - sndbase%WINDOWSIZE > 256)
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
                     retransmitForPush(fd, &rtx);
                 }
+                mtxLock(&mtxPacketAndDetails);
                 sndbase = details.sendBase;
+                mtxUnlock(&mtxPacketAndDetails);
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
@@ -476,20 +497,27 @@ void pushSender()
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
                 }
                 sndPacket.isFinal = (short) isFinal;
+
+                mtxLock(&mtxPacketAndDetails);
                 sndPacket.ackSeqNum = details.remoteSeq;
+                seqnum = details.mySeq;
+                mtxUnlock(&mtxPacketAndDetails);
+
                 sndPacket.seqNum = seqnum;
                 sndPacket.opID = globalOpID;
                 //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
-                seqnum = details.mySeq;
             }
             else
                 retransmitForPush(fd, &rtx);
         }
 
         //PROTEGGI CON I MUTEX
+        mtxLock(&mtxPacketAndDetails);
         sndbase = details.sendBase;
+        mtxUnlock(&mtxPacketAndDetails);
+
         if (((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
         {
             printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
@@ -500,7 +528,9 @@ void pushSender()
         }
     }
     printf("mi appresto a mandare il pacchetto finale\n");
+    mtxLock(&mtxPacketAndDetails);
     memset(sndPacket.content, 0, 512);
+    mtxUnlock(&mtxPacketAndDetails);
     sndPacket.isFinal = -1;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
@@ -510,17 +540,25 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
 {
     printf("ritrasmetto\n");
     datagram sndPacket;
+
+    mtxLock(&mtxPacketAndDetails);
     if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1)
     {
         perror("errore in lseek");
     }
+    mtxUnlock(&mtxPacketAndDetails);
+
     if(read(fd, sndPacket.content, 512)==-1)
     {
         perror("error in read");
     }
 
     sndPacket.isFinal = rtx->isFinal;
+
+    mtxLock(&mtxPacketAndDetails);
     sndPacket.ackSeqNum = details.remoteSeq;
+    mtxUnlock(&mtxPacketAndDetails);
+
     sndPacket.seqNum = rtx->seqNum;
     sndPacket.opID = globalOpID;
 
@@ -539,7 +577,9 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     sendBase = SYN.sequenceNum;
 
     // il prossimo seqnum utile
+    mtxLock(&mtxPacketAndDetails);
     details.remoteSeq = SYN.sequenceNum;
+    mtxUnlock(&mtxPacketAndDetails);
 
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
@@ -552,8 +592,10 @@ void sendSYN2(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
 
+    mtxLock(&mtxPacketAndDetails);
     SYN.sequenceNum = details.mySeq;
     SYN.ack = details.remoteSeq;
+    mtxUnlock(&mtxPacketAndDetails);
 
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
@@ -584,7 +626,9 @@ int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd
         {
             printf("SYNACK ricevuto. numero di sequenza : %d\n", SYNACK.sequenceNum);
             ackSentPacket(SYNACK.ack);
+            mtxLock(&mtxPacketAndDetails);
             details.remoteSeq = SYNACK.sequenceNum;//---------------------------------------------serve al syn2
+            mtxUnlock(&mtxPacketAndDetails);
             //--------------------------------------------INIT GLOBAL DETAILS
             return SYNACK.sequenceNum;
         }
@@ -595,7 +639,11 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 {
     handshake ACK;
     ACK.ack = synackSN;
+
+    mtxLock(&mtxPacketAndDetails);
     ACK.sequenceNum = details.remoteSeq;
+    mtxUnlock(&mtxPacketAndDetails);
+
     ACK.windowsize = windowSize;
 
     sendACK(socketfd, &ACK, servAddr, servLen);
