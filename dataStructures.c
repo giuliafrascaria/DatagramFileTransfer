@@ -559,8 +559,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
             if(packet.opID == opID) {
                 isFinal = packet.isFinal;
                 //----------------------------------------------------------------
-                if (isFinal == 0)
+                if (isFinal == 0) {
                     writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
+                }
                 else if (isFinal == 1) {
                     writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
                     printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
@@ -577,6 +578,8 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 tellSenderSendACK(packet.seqNum, packet.isFinal);
                 memset(&packet, 0, sizeof(datagram));
             }
+            //else
+                //printf("non era una stupidata,globalOPID = %d, opID arrivato = %d\n", opID, packet.opID);
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }

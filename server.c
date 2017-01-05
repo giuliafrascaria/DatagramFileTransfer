@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -187,6 +187,7 @@ void listenCycle()
 
                 mtxLock(&syncMTX);
                 globalOpID = packet.opID;
+                printf("pacchetto ricevuto opID = %d\n", globalOpID);
                 mtxUnlock(&syncMTX);
 
                 sendSignalThread(&condMTX2, &senderCond);
@@ -199,7 +200,7 @@ void listenCycle()
                 else if (packet.command == 1)
                 {
                     int fd = receiveFirstDatagram(packet.content);
-                    tellSenderSendACK(packet.seqNum, 1);
+                    tellSenderSendACK(packet.seqNum, packet.isFinal);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd);
                 }

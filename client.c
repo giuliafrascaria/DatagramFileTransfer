@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -442,14 +442,13 @@ void pushListener()
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
 
-
-
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
 
     mtxLock(&syncMTX);
     globalOpID = packet.opID;
+    printf("pacchetto inviato OPID %d\n", packet.opID);
     mtxUnlock(&syncMTX);
     //-----------------------------------------
 
@@ -462,8 +461,9 @@ void pushListener()
 void pushSender()
 {
     mtxLock(&mtxPacketAndDetails);
-    int seqnum = details.mySeq, finalSeq = -1, isFinal = 0, sndbase = 0;
+    int seqnum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
+    int finalSeq = -1, isFinal = 0, sndbase = 0;
 
     ssize_t readByte;
     datagram sndPacket;
@@ -492,10 +492,12 @@ void pushSender()
     sndPacket.seqNum = seqnum;
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
+    mtxLock(&syncMTX);
+    sndPacket.opID = globalOpID;
+    mtxUnlock(&syncMTX);
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     seqnum = details.mySeq;
-    isFinal = 0;
 
     while(((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
     {
@@ -538,7 +540,6 @@ void pushSender()
                 sndPacket.opID = globalOpID;
                 mtxUnlock(&syncMTX);
 
-                //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
             }
