@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <dirent.h>
+#include <semaphore.h>
 #include "server.h"
 
 #define WINDOWSIZE 256

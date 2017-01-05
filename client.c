@@ -102,8 +102,12 @@ void clientSendFunction()
         }
         else
         {
-            pushSender();
-            //sendCycle();
+            mtxLock(&mtxPacketAndDetails);
+            details.sendBase = details.mySeq;
+            details.firstSeqNum= details.mySeq;
+            mtxUnlock(&mtxPacketAndDetails);
+            //pushSender();
+            sendCycle();
         }
     }
 }
@@ -361,7 +365,8 @@ void listPullListener(int fd, int command)
     mtxLock(&mtxPacketAndDetails);
     packet.command = command;
     packet.isFinal = 1;
-    packet.opID =  rand() % 2048;
+    srandom((unsigned int)getpid());
+    packet.opID = (int) random() % 4096;
 
     mtxLock(&syncMTX);
     globalOpID = packet.opID;
@@ -454,7 +459,8 @@ void pushListener()
     mtxLock(&mtxPacketAndDetails);
     packet.command = 1;
     packet.isFinal = 0;
-    packet.opID =  rand() % 2048;
+    srandom((unsigned int)getpid());
+    packet.opID = (int) random() % 4096;
 
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
@@ -475,9 +481,10 @@ void pushListener()
 void pushSender()
 {
     mtxLock(&mtxPacketAndDetails);
-    int seqnum = details.mySeq;
+    volatile int seqnum = details.mySeq;
+    volatile int sndbase = details.sendBase;
     mtxUnlock(&mtxPacketAndDetails);
-    int finalSeq = -1, isFinal = 0, sndbase = 0;
+    volatile int finalSeq = -1, isFinal = 0;
 
     ssize_t readByte;
     datagram sndPacket;
@@ -514,8 +521,9 @@ void pushSender()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     seqnum = details.mySeq;
+    printf("valore iniziale di sendBase = %d\n", details.sendBase);
 
-    while(((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
+    while((((details.sendBase)%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
     {
         while(isFinal == 0)
         {
@@ -523,7 +531,8 @@ void pushSender()
             sndbase = details.sendBase;
             mtxUnlock(&mtxPacketAndDetails);
 
-            while(seqnum%WINDOWSIZE - sndbase%WINDOWSIZE > 256)
+            printf("seqnum %d, sndBase %d\n",(details.mySeq)%WINDOWSIZE , (details.sendBase)%WINDOWSIZE);
+            while((details.mySeq)%WINDOWSIZE - (details.sendBase)%WINDOWSIZE > 256)
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
@@ -570,9 +579,8 @@ void pushSender()
 
         if ((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE))
         {
-            sleep(4);
-            printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
-            printWindow();
+            //printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
+            //printWindow();
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
@@ -707,7 +715,6 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
 void sendCycle()
 {
-    printf("sono il sender del server, sto per fare la list o la pull\n");
     int fd;
     datagram sndPacket;
 
@@ -742,9 +749,10 @@ void sendCycle()
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
 
-    int seqnum = details.mySeq;
+
 
     mtxLock(&mtxPacketAndDetails);
+    int seqnum = details.mySeq;
     details.firstSeqNum = seqnum;
     int sndBase = details.sendBase;
     mtxUnlock(&mtxPacketAndDetails);

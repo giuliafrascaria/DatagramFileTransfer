@@ -59,7 +59,7 @@ struct details
     socklen_t Size2;
     int remoteSeq;
     int mySeq;
-    int volatile sendBase;
+    int sendBase;
     int volatile firstSeqNum;
     //struct selectCell selectiveWnd[];
 };

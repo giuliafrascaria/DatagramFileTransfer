@@ -137,7 +137,7 @@ void sentPacket(int packetN, int retransmission)
 
         (selectiveWnd[packetN % windowSize]).value = 1;
         ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
-        //printf("updated selective repeat\n");
+        //printf("updated selective repeat %d\n", packetN);
 
         int pos = getWheelPosition();
         startTimer(packetN, pos);
@@ -170,7 +170,7 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
     else
-        printf("mi hai ackato qualcosa che non ho mai inviato\n");
+        printf("mi hai ackato qualcosa che non ho mai inviato %d\n", ackN);
 
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
     //printf("esco da acksentpacket\n");
@@ -196,10 +196,11 @@ void printWindow()
 void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
     mtxLock(&mtxPacketAndDetails);
-    while(selectiveWnd[details.sendBase%windowSize].value == 2){
-        selectiveWnd[details.sendBase%windowSize].value = 0;
+//    printf("valore di sendbase : %d\n", details.sendBase);
+    while(selectiveWnd[(details.sendBase)%(windowSize)].value == 2){
+        selectiveWnd[(details.sendBase)%(windowSize)].value = 0;
         details.sendBase = details.sendBase + 1;
-        printf("mando avanti sendBase, %d\n", details.sendBase);
+//        printf("mando avanti sendBase, %d\n", details.sendBase);
     }
     mtxUnlock(&mtxPacketAndDetails);
     //printWindow();
