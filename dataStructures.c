@@ -16,12 +16,14 @@ extern struct details details;
 extern int  timerSize, nanoSleep, windowSize, sendBase;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
-extern volatile int currentTimeSlot, finalLen;
+extern volatile int currentTimeSlot, finalLen, globalTimerStop;
 extern datagram packet;
 extern int globalOpID;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condTimerSleep = PTHREAD_COND_INITIALIZER;
 
 int offset = 10;
 
@@ -247,29 +249,24 @@ void * timerFunction()
         initTimerWheel();
         currentTimeSlot = 0;
 
-        //while (*TIMGB == 1)
-        for (;;) {
+        if(pthread_cond_wait(&condTimerSleep, &mtxTimerSleep) == -1)
+        {
+            perror("error in cond_wait timer");
+        }
+
+        while(globalTimerStop == 1) {
             currentTimer = timerWheel[currentTimeSlot].nextTimer;
 
-
-            while (currentTimer != NULL)
-            {
-                //printf("ho trovato un assert in posizione %d, validità del timer: %d\n", currentTimeSlot, currentTimer->isValid);
-                //printf("indirizzo rilevato dal timer : %p\n", currentTimer);
+            while (currentTimer != NULL) {
 
                 rtxN.seqNum = currentTimer->seqNum;
-
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
-
                 //rtxN.isFinal = 0;
-                if(currentTimer->isValid)
-                {
-
+                if (currentTimer->isValid) {
                     if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
                         perror("error in pipe write");
                     }
                 }
-
                 //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
                 currentTimer->isValid = 0;
                 mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
@@ -278,17 +275,11 @@ void * timerFunction()
 
                 currentTimer = currentTimer->nextTimer;
             }
-            //printf("|_|\n");
-
             clockTick();
-
-            if(usleep((useconds_t) nanoSleep) == -1)
-            {
+            if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
             }
-
         }
-        exit(EXIT_SUCCESS);
     }
 }
 
@@ -733,5 +724,15 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
     if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
     {
         perror("error in write on pipe");
+    }
+}
+
+void sendSignalTimer()
+{
+    //PROTEGGI CON MUTEX     <<-------------------------------------<
+    globalTimerStop = 1;
+    if(pthread_cond_signal(&condTimerSleep) == -1)
+    {
+        perror("error in cond_signal timer");
     }
 }

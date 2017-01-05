@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 5000000
+#define NANOSLEEP 500000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -21,6 +21,7 @@ int windowSize = WINDOWSIZE;
 int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
+volatile int globalTimerStop = 0;
 volatile int currentTimeSlot, globalOpID;
 volatile int fdList, finalLen;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
@@ -199,6 +200,7 @@ void listenCycle()
 
     for(;;)
     {
+        globalTimerStop = 0;  //PROTEGGI CON MUTEX      <<----------------------------------------<
         res = 0;
         printf("insert command : \n");
 
@@ -220,9 +222,8 @@ void listenCycle()
             else
             {
                 printf("processing request\n");
-
+                sendSignalTimer();
                 parseInput(s);
-                //sendSignalThread(&condMTX, &secondConnectionCond);
                 timeout = 0;
                 //provvisorio
                 //poi mi devo mettere a sentire i dati ricevuti dalla socket
