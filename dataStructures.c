@@ -18,6 +18,7 @@ extern int pipeFd[2];
 extern int pipeSendACK[2];
 extern volatile int currentTimeSlot, finalLen;
 extern datagram packet;
+extern int globalOpID;
 
 pthread_mutex_t posinwheelMTX = PTHREAD_MUTEX_INITIALIZER;
 
@@ -595,7 +596,8 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
         }
     }
 
-    if (write(file, content, len) == -1) {
+    if (write(file, content, len) == -1)
+    {
         perror("error in writeOnFile");
     }
 }
@@ -653,18 +655,25 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
     }
 }
 
-datagram * rebuildDatagram(struct pipeMessage pm)
+datagram rebuildDatagram(int fd, struct pipeMessage pm)
 {
-    datagram *packet = malloc(sizeof(datagram));
-    if (packet == NULL) {
-        perror("error in malloc");
-    } else {
-        packet->seqNum = pm.seqNum;
-        packet->isFinal = pm.isFinal;
-        packet->ackSeqNum = details.remoteSeq; //   <<-----------------< controlla
-        packet->opID = 000000000000000000000000;
+    printf("ritrasmetto\n");
+    datagram sndPacket;
+    if(lseek(fd, 512*(pm.seqNum - details.firstSeqNum), SEEK_SET) == -1)
+    {
+        perror("errore in lseek");
     }
-    return packet;
+    if(read(fd, sndPacket.content, 512)==-1)
+    {
+        perror("error in read");
+    }
+
+    sndPacket.isFinal = pm.isFinal;
+    sndPacket.ackSeqNum = details.remoteSeq;
+    sndPacket.seqNum = pm.seqNum;
+    sndPacket.opID = globalOpID;
+
+    return sndPacket;
 }
 
 int getFileLen(int fd)
@@ -706,8 +715,8 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
         }
         else if (checkPipe(pm, pipeFd[0]) == 1)
         {
-            datagram * packetRTX = rebuildDatagram(*pm);
-            sendDatagram(socketfd, servAddr, servLen, packetRTX);
+            //datagram packetRTX = rebuildDatagram(*pm);
+            //sendDatagram(socketfd, servAddr, servLen, packetRTX);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }

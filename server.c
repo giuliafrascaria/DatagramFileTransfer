@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -496,69 +496,68 @@ void sendCycle(int command)
     waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
 
     int seqnum = details.mySeq;
+    details.firstSeqNum = seqnum;
     int finalSeq = -1;
     int isFinal = 0;
     int sndBase = details.sendBase;
     ssize_t readByte;
 
     struct pipeMessage rtx;
-    while(sndBase != finalSeq || isFinal == 0)
+    while(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
     {
-        while(seqnum%WINDOWSIZE - details.sendBase > 256)
+        while(isFinal == 0)
+        {
+            sndBase = details.sendBase;
+
+            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
+            {
+                if(checkPipe(&rtx, pipeFd[0]) != 0)
+                {
+                    printf("ritrasmetto\n");
+
+                    sndPacket = rebuildDatagram(fd, rtx);
+
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                }
+                if (checkPipe(&rtx, pipeFd[0]) == 0)
+                {
+                    memset(sndPacket.content, 0, 512);
+                    readByte = read(fd, sndPacket.content, 512);
+                    if (readByte < 512 && readByte >= 0)
+                    {
+                        finalSeq = seqnum;
+                        isFinal = 1;
+                        printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                    }
+                    sndPacket.isFinal = (short) isFinal;
+                    sndPacket.ackSeqNum = details.remoteSeq;
+                    sndPacket.seqNum = seqnum;
+                    sndPacket.opID = globalOpID;
+                    printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+
+                    seqnum = details.mySeq;
+
+                }
+                else
+                {
+                    //ritrasmetti
+                    sndPacket = rebuildDatagram(fd, rtx);
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                }
+            }
+
+        }
+        sndBase = details.sendBase;
+        if(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
                 printf("ritrasmetto\n");
-                memset(sndPacket.content, 0, 512);
-                if((lseek(fd, 512*(rtx.seqNum - details.firstSeqNum), SEEK_SET)) == -1){
-                    perror("errore in lseek");
-                }
-                if(read(fd, sndPacket.content, 512)==-1){
-                    perror("error in read");
-                }
-
-                sndPacket.isFinal = rtx.isFinal;
-                sndPacket.ackSeqNum = details.remoteSeq;
-                sndPacket.seqNum = rtx.seqNum;
-                sndPacket.opID = globalOpID;
+                sndPacket = rebuildDatagram(fd, rtx);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
             }
         }
-        if (isFinal == 1)
-        {
-            if(checkPipe(&rtx, pipeFd[0]) != 0)
-            {
-                printf("ciao giogge! \n\nritrasmetti\n");
-            }
-        }
-        else
-        {
-            if (checkPipe(&rtx, pipeFd[0]) == 0)
-            {
-                memset(sndPacket.content, 0, 512);
-                readByte = read(fd, sndPacket.content, 512);
-                if (readByte < 512 && readByte >= 0)
-                {
-                    finalSeq = seqnum;
-                    isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
-                }
-                sndPacket.isFinal = (short) isFinal;
-                sndPacket.ackSeqNum = details.remoteSeq;
-                sndPacket.seqNum = seqnum;
-                sndPacket.opID = globalOpID;
-                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
-
-                seqnum = details.mySeq;
-
-            }
-            else
-            {
-                printf("ritrasmetti\n");
-            }
-        }
-        sndBase = details.sendBase;
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;

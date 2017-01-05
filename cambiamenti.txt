@@ -7,3 +7,12 @@ IPPROTO_UDP invece di 0 -> datastructures.c -> createSocket()
 con CTRL,SHIFT,"-" (meno) si fa il collapse di tutte le funzioni
 
 sia in client che in server mi sa che si possono stringere i parametri della prima connessione salvando tutto nel details globale
+
+
+
+
+
+
+rebuilddatagram decente
+
+ritrasmissione del primo pacchetto di list pull se il timer trova erroneamente a non nullo e ritrasmette

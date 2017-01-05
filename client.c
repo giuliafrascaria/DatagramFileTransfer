@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 5000000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -322,6 +322,7 @@ void listPullListener(int fd, int command)
     packet.command = command;
     packet.isFinal = 1;
     packet.opID =  rand() % 2048;
+    globalOpID = packet.opID;
     packet.seqNum = details.mySeq;
     //-----------------------------------------
 
@@ -340,6 +341,7 @@ void listPullListener(int fd, int command)
 
     tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
+    printf("aspetto datagrammi\n");
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
 
     if(command == 0)
@@ -516,6 +518,7 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     sndPacket.ackSeqNum = details.remoteSeq;
     sndPacket.seqNum = rtx->seqNum;
     sndPacket.opID = globalOpID;
+
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 }
 
