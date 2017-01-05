@@ -138,8 +138,6 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
 
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
 
-int receiveDatagram(int socketfd, int file, struct sockaddr * address, socklen_t *slen, int firstN, size_t finalLen);
-
 int openFile(char * fileName);
 
 void closeFile(int fd);
@@ -147,8 +145,6 @@ void closeFile(int fd);
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition);
-
-int checkWindowSendBase();
 
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len);
 

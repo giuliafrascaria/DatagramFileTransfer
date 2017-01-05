@@ -433,54 +433,6 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
     return isFinal;
 }
 
-/*
-int receiveDatagram(int socketfd, struct sockaddr * address, socklen_t *slen, int file, size_t finalLen)
-{
-    char *buffer = malloc(sizeof(datagram));
-    //datagram * pointer = &packet;
-
-    if (buffer == NULL)
-        perror("error in datagram malloc");
-
-    ssize_t msgLen = recvfrom(socketfd, buffer, sizeof(buffer), 0, address, slen);
-    if (msgLen == -1)
-        perror("error in recvfrom");
-
-    if (msgLen != sizeof(handshake)) {
-        datagram *packet;
-        packet = (datagram *) buffer;
-
-        int isFinal = packet->isFinal;
-        int offset = packet->seqNum - details.firstSeqNum;
-
-        if (lseek(file, offset * 512, SEEK_SET) == -1)
-            perror("lseek error");
-
-        if (isFinal == 0) {
-            writeOnFile(file, packet->content, 512);
-        } else {
-            writeOnFile(file, packet->content, finalLen);
-        }
-        if (packet->ackSeqNum != 0)
-            ackSentPacket(packet->seqNum);
-
-        tellSenderSendACK(packet->seqNum, (short) isFinal);
-
-        if (isFinal == 0)
-            return isFinal;
-        else
-            return packet->seqNum;
-    }
-    else {
-        handshake *ACK = (handshake *) buffer;
-        printf("ricevuto ack\n");
-        ackSentPacket(ACK->sequenceNum);
-        free(ACK);
-        return ACK->isFinal;
-    }
-}
-*/
-
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
 {
     ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
@@ -529,17 +481,6 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     }
 }
 
-/*void waitForDatagramCycle(int socket, struct sockaddr * address, socklen_t *slen, int file, int firstPacket, size_t finalLen)
-{
-    int isFinal = 0, lastDatagram = -1;
-    isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-    while(isFinal == 0 || details.sendBase != lastDatagram)
-    {
-        isFinal = receiveDatagram(socket, file, address, slen, firstPacket, finalLen);
-        if(isFinal != 0)
-            lastDatagram = isFinal;
-    }
-}*/
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd)
 {

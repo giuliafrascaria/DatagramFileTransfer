@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -27,6 +27,8 @@ volatile int globalOpID;
 volatile int fdList, finalLen;
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 datagram packet;
+
+int fdglob;
 
 
 void retransmitForPush(int fd, struct pipeMessage * rtx);
@@ -245,9 +247,13 @@ void listenCycle()
 
                 clock_gettime(CLOCK_REALTIME, &opEnd);
 
-                printf("\n\n\n------------------------------------------------\n");
-                printf("|\toperazione completata in %lu millisecondi\t| \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
-                printf("------------------------------------------------\n");
+                ssize_t len = lseek(fdglob, 0, SEEK_END)+1;
+
+                printf("\n\n\n----------------------------------------------------------------\n");
+                printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
+                printf("|\tdimensione del file: %d kB\n", (int) len/1000);
+                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000));
+                printf("----------------------------------------------------------------\n");
                 printf("\n\n");
                 //provvisorio
                 //poi mi devo mettere a sentire i dati ricevuti dalla socket
@@ -277,6 +283,8 @@ void parseInput(char * s)
             perror("1: error in list tempfile open");
             fdList = mkstemp(listFilename);
         }
+
+        fdglob = fdList;
         unlink(listFilename);
 
         listPullListener(fdList, 0);
@@ -299,6 +307,8 @@ void parseInput(char * s)
 
         char * fileName;
         int fdPull;
+
+
 
         if (sscanf(s, "%*s %s", content) == EOF) {
             perror("1: error in reading words from standard input, first sscanf pull");
@@ -323,6 +333,8 @@ void parseInput(char * s)
         {
             perror("1: file already exists on push");
         }
+
+        fdglob = fdPull;
 
         printf("|    file created with name : %s \n", content);
 
@@ -476,6 +488,8 @@ void pushSender()
     if(fd == -1){
         perror("error in open");
     }
+
+    fdglob = fd;
     mtxUnlock(&mtxPacketAndDetails);
 
     int len = getFileLen(fd);
