@@ -142,7 +142,7 @@ void listenCycle()
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
-        globalTimerStop = 0; //PROTEGGERE CON I MUTEX   <<----------------------------------<
+        globalTimerStop = 0; //PROTEGGERE CON I MUTEX   <<----------------------------------<;
         printf("\nsono il listener e ricomincio il ciclo\n");
         memset(&packet, 0, sizeof(datagram));
         int res = 0;
@@ -431,9 +431,11 @@ int receiveFirstDatagram(char * content)
     {
         perror("error in malloc");
     }
-    sprintf(fileName, "%s%s", LSDIR, content);
+    if(sprintf(fileName, "%s%s", LSDIR, s) == -1)
+    {
+        perror("error in srintf");
+    }
 
-    printf("|    path nuovo: %s \n", fileName);
     printf("file da aprire: %s\n", fileName);
 
     if((fd = open(fileName, O_RDWR | O_TRUNC | O_CREAT, 0777)) == -1)

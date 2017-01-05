@@ -201,6 +201,7 @@ void listenCycle()
     for(;;)
     {
         globalTimerStop = 0;  //PROTEGGI CON MUTEX      <<----------------------------------------<
+        memset(&packet, 0, sizeof(datagram));
         res = 0;
         printf("insert command : \n");
 
@@ -491,11 +492,14 @@ void pushSender()
         sndbase = details.sendBase;
         if (((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
         {
+            printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
+            sleep(2);
         }
     }
+    printf("mi appresto a mandare il pacchetto finale\n");
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
