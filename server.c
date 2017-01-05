@@ -517,11 +517,6 @@ void sendCycle(int command)
 
     int len = getFileLen(fd);
     memset(sndPacket.content, 0, 512);
-    char * s = malloc(100);
-    if(s == NULL){
-        perror("error in malloc");
-    }
-    //s = stringParser(packet.content);
     if(sprintf(sndPacket.content, "%d", len) < 0)
     {
         perror("error in sprintf");

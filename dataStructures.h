@@ -173,6 +173,9 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 void sendSignalTimer();
 
 int readGlobalTimerStop();
+
+
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H
