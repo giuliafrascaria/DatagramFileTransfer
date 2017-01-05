@@ -707,7 +707,7 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
         else if (checkPipe(pm, pipeFd[0]) == 1)
         {
             //datagram packetRTX = rebuildDatagram(*pm);
-            //sendDatagram(socketfd, servAddr, servLen, packetRTX);
+            sendDatagram(socketfd, servAddr, servLen, &packet);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }
