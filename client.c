@@ -442,13 +442,15 @@ void pushListener()
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
 
-    mtxLock(&syncMTX);
-    globalOpID = packet.opID;
-    mtxUnlock(&syncMTX);
+
 
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
+
+    mtxLock(&syncMTX);
+    globalOpID = packet.opID;
+    mtxUnlock(&syncMTX);
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);

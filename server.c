@@ -160,7 +160,9 @@ void listenCycle()
         int timeout = 0;
         while(!res)
         {
+            mtxLock(&mtxPacketAndDetails);
             res = checkSocketDatagram(&(details.addr), details.Size, details.sockfd, &packet);
+            mtxUnlock(&mtxPacketAndDetails);
             if(res == -1)
             {
                 perror("error in socket read");
