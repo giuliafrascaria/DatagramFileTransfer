@@ -240,7 +240,7 @@ void mtxUnlock(pthread_mutex_t * mtx)
 //-----------------------------------------------------------------------------------------------------------------TIMER
 void * timerFunction()
 {
-    printf("timer thread attivato\n\n");
+    //printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
     for(;;)
@@ -321,7 +321,7 @@ void startTimer(int packetN, int posInWheel)
 
 void initTimerWheel()
 {
-    printf("inizializzo ruota del timer\n");
+    //printf("inizializzo ruota del timer\n");
     for(int i = 0; i < timerSize; i++)
     {
         timerWheel[i].nextTimer = NULL;
@@ -535,26 +535,27 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
-            isFinal = packet.isFinal;
-            //----------------------------------------------------------------
-            if(isFinal == 0)
-                writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
-            else if(isFinal == 1) {
-                writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
-                printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
+            if(packet.opID == globalOpID) {
+                isFinal = packet.isFinal;
+                //----------------------------------------------------------------
+                if (isFinal == 0)
+                    writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
+                else if (isFinal == 1) {
+                    writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
+                    printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
+                }
+                //----------------------------------------------------------------
+
+                if (!ackreceived) {
+                    ackSentPacket(packet.ackSeqNum);
+                    ackreceived = 1;
+                }
+
+
+                details.remoteSeq = packet.seqNum;
+                tellSenderSendACK(packet.seqNum, packet.isFinal);
+                memset(&packet, 0, sizeof(datagram));
             }
-            //----------------------------------------------------------------
-
-            if(!ackreceived)
-            {
-                ackSentPacket(packet.ackSeqNum);
-                ackreceived = 1;
-            }
-
-
-            details.remoteSeq = packet.seqNum;
-            tellSenderSendACK(packet.seqNum, packet.isFinal);
-            memset(&packet, 0, sizeof(datagram));
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
