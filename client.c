@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -102,8 +102,8 @@ void clientSendFunction()
         }
         else
         {
-            //pushSender();
-            sendCycle();
+            pushSender();
+            //sendCycle();
         }
     }
 }
@@ -252,7 +252,7 @@ void listenCycle()
                 printf("\n\n\n----------------------------------------------------------------\n");
                 printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
                 printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000));
+                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000 +1));
                 printf("----------------------------------------------------------------\n");
                 printf("\n\n");
                 //provvisorio
@@ -568,13 +568,14 @@ void pushSender()
         sndbase = details.sendBase;
         mtxUnlock(&mtxPacketAndDetails);
 
-        if (((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
+        if ((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE))
         {
+            sleep(4);
             printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
+            printWindow();
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
-            sleep(2);
         }
     }
     printf("mi appresto a mandare il pacchetto finale\n");
@@ -703,7 +704,6 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     //sentPacket(ACK.sequenceNum, 0);
     printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
 }
-
 
 void sendCycle()
 {

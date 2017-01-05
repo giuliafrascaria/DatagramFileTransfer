@@ -28,6 +28,8 @@ pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condTimerSleep = PTHREAD_COND_INITIALIZER;
 
+extern pthread_mutex_t mtxPacketAndDetails;
+
 int offset = 10;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
@@ -167,6 +169,8 @@ void ackSentPacket(int ackN)
 
         slideWindow();
     }
+    else
+        printf("mi hai ackato qualcosa che non ho mai inviato\n");
 
     mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
     //printf("esco da acksentpacket\n");
@@ -191,11 +195,13 @@ void printWindow()
 
 void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
+    mtxLock(&mtxPacketAndDetails);
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
         selectiveWnd[details.sendBase%windowSize].value = 0;
         details.sendBase = details.sendBase + 1;
-        //printf("mando avanti sendBase\n");
+        printf("mando avanti sendBase, %d\n", details.sendBase);
     }
+    mtxUnlock(&mtxPacketAndDetails);
     //printWindow();
 }
 

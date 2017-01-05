@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -588,7 +588,7 @@ void sendCycle(int command)
                 sndPacket.opID = globalOpID;
                 mtxUnlock(&syncMTX);
 
-                printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
+                //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
                 seqnum = details.mySeq;
 
@@ -603,6 +603,7 @@ void sendCycle(int command)
 
         mtxLock(&mtxPacketAndDetails);
         sndBase = details.sendBase;
+        //printf("sndbase = %d\n", details.sendBase);
         mtxUnlock(&mtxPacketAndDetails);
 
         if(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
@@ -619,4 +620,5 @@ void sendCycle(int command)
     sndPacket.isFinal = -1;
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+    printWindow();
 }
