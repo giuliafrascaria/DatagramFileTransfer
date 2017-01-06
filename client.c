@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;

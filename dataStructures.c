@@ -166,15 +166,13 @@ void ackSentPacket(int ackN)
         //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
-
         mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
-
         slideWindow();
     }
-    else
+    else {
         printf("mi hai ackato qualcosa che non ho mai inviato\n");
-
-
+        mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+    }
     //printf("esco da acksentpacket\n");
 }
 
@@ -197,13 +195,16 @@ void printWindow()
 
 void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
-    mtxLock(&mtxPacketAndDetails);
+
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
+        mtxLock(&(selectiveWnd[details.sendBase % windowSize]).cellMtx);
         selectiveWnd[details.sendBase%windowSize].value = 0;
+        mtxUnlock(&(selectiveWnd[details.sendBase % windowSize]).cellMtx);
+        mtxLock(&mtxPacketAndDetails);
         details.sendBase = details.sendBase + 1;
-        printf("mando avanti sendBase, %d\n", details.sendBase);
+        mtxUnlock(&mtxPacketAndDetails);
+        //printf("mando avanti sendBase, %d\n", details.sendBase);
     }
-    mtxUnlock(&mtxPacketAndDetails);
     //printWindow();
 }
 
@@ -489,7 +490,6 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     }
 }
 
-
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd)
 {
     int isFinal = 0;
@@ -497,15 +497,11 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     int ackreceived = 0;
 
-    mtxLock(&syncMTX);
-    int opID = globalOpID;
-    mtxUnlock(&syncMTX);
-
     while(isFinal != -1)
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
-            if(packet.opID == opID) {
+            if(packet.opID == getOpID()) {
                 isFinal = packet.isFinal;
                 //----------------------------------------------------------------
                 if (isFinal == 0) {
@@ -697,12 +693,10 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
     while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
 
     printf("sono uscito da qui \n\n\n");
-    handshake ack;
-    ack.isFinal = 1;
-    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
-    {
-        perror("error in write on pipe");
-    }
+    struct pipeMessage ack;
+    ack.isFinal = 100; // a caso
+    ack.seqNum = 100;
+    tellSenderSendACK(ack.seqNum, ack.isFinal);
 }
 
 void sendSignalTimer()
@@ -715,4 +709,13 @@ void sendSignalTimer()
     {
         perror("error in cond_signal timer");
     }
+}
+
+int getOpID()
+{
+    int opID;
+    mtxLock(&syncMTX);
+    opID = globalOpID;
+    mtxUnlock(&syncMTX);
+    return opID;
 }
