@@ -167,12 +167,14 @@ void ackSentPacket(int ackN)
 
         //-------------------------------------------------------------------------------------------------------------------------------
 
+        mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+
         slideWindow();
     }
     else
         printf("mi hai ackato qualcosa che non ho mai inviato\n");
 
-    mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+
     //printf("esco da acksentpacket\n");
 }
 
@@ -195,13 +197,13 @@ void printWindow()
 
 void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
-    //mtxLock(&mtxPacketAndDetails);
+    mtxLock(&mtxPacketAndDetails);
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
         selectiveWnd[details.sendBase%windowSize].value = 0;
         details.sendBase = details.sendBase + 1;
-        //printf("mando avanti sendBase, %d\n", details.sendBase);
+        printf("mando avanti sendBase, %d\n", details.sendBase);
     }
-    //mtxUnlock(&mtxPacketAndDetails);
+    mtxUnlock(&mtxPacketAndDetails);
     //printWindow();
 }
 
@@ -419,12 +421,7 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             if (msgLen == sizeof(handshake))
             {
                 ACK = (handshake *) buffer;
-
-                //printf("ricevuto ack del pacchetto %d, finestra prima e dopo\n", ACK->sequenceNum);
-                //printWindow();
                 ackSentPacket(ACK->sequenceNum);
-
-                //printWindow();
                 isFinal = ACK->isFinal;
                 //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
@@ -683,7 +680,6 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
         if (checkPipe(pm, pipeSendACK[0]) == 1)
         {
             finish = -1;
-            printf("\n\nè arrivato il segnale\n");
             free(pm);
         }
         else if (checkPipe(pm, pipeFd[0]) == 1)
@@ -702,13 +698,11 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 
     printf("sono uscito da qui \n\n\n");
     handshake ack;
-    ack.isFinal = 100; // a caso
-    ack.sequenceNum = 100;
-    tellSenderSendACK(ack.sequenceNum, ack.isFinal);
-/*    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
+    ack.isFinal = 1;
+    if(write(pipeSendACK[1], &ack, sizeof(handshake))==-1)
     {
         perror("error in write on pipe");
-    }*/
+    }
 }
 
 void sendSignalTimer()

@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -461,8 +461,8 @@ void pushListener()
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
 
-//    packet.seqNum = details.mySeq;
-//    details.firstSeqNum = details.mySeq;
+    //packet.seqNum = details.mySeq;
+    //details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
 
 //    mtxLock(&syncMTX);
@@ -630,7 +630,6 @@ void putDataInPacketPush(datagram * packet, int isFinal)
     packet->opID = globalOpID;
     mtxUnlock(&syncMTX);
 }
-
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -842,5 +841,3 @@ void sendCycle()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
-
-
