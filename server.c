@@ -335,13 +335,13 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             details.remoteSeq = ACK.sequenceNum;
             mtxUnlock(&mtxPacketAndDetails);
 
-            printf("prima di aggiornare\n");
-            printWindow();
+//          printf("prima di aggiornare\n");
+//          printWindow();
 
             ackSentPacket(ACK.ack);
 
-            printf("dopo l'aggiornamento\n");
-            printWindow();
+//          printf("dopo l'aggiornamento\n");
+//          printWindow();
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
         }

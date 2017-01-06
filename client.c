@@ -471,10 +471,20 @@ void pushListener()
 //    mtxUnlock(&syncMTX);
     //-----------------------------------------
 
-    sendSignalThread(&condMTX2, &senderCond);
-    waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
-    waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
-    printf("--------------SONO USCITO-------------------\n\n\n\n");
+    mtxLock(&mtxPacketAndDetails);
+    int fd = open(packet.content, O_RDONLY);
+    if(fd == -1){
+        perror("error in open");
+        mtxUnlock(&mtxPacketAndDetails);
+    }
+    else {
+        fdglob = fd;
+        mtxUnlock(&mtxPacketAndDetails);
+        sendSignalThread(&condMTX2, &senderCond);
+        waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
+        waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
+//        printf("--------------SONO USCITO-------------------\n\n\n\n");
+    }
 }
 
 void pushSender()
@@ -486,16 +496,7 @@ void pushSender()
 
     initProcessDetails();
 
-    mtxLock(&mtxPacketAndDetails);
-    int fd = open(packet.content, O_RDONLY);
-    if(fd == -1){
-        perror("error in open");
-    }
-
-    fdglob = fd;
-    mtxUnlock(&mtxPacketAndDetails);
-
-    int len = getFileLen(fd);
+    int len = getFileLen(fdglob);
     memset(sndPacket.content, 0, 512);
     char * s = malloc(100);
     if(s == NULL){
@@ -521,13 +522,13 @@ void pushSender()
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
-                    retransmitForPush(fd, &rtx);
+                    retransmitForPush(fdglob, &rtx);
                 }
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
                 memset(sndPacket.content, 0, 512);
-                readByte = read(fd, sndPacket.content, 512);
+                readByte = read(fdglob, sndPacket.content, 512);
                 if (readByte < 512 && readByte >= 0)
                 {
                     finalSeq = getSeqNum();
@@ -541,13 +542,13 @@ void pushSender()
 
             }
             else
-                retransmitForPush(fd, &rtx);
+                retransmitForPush(fdglob, &rtx);
         }
 
         if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
         {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                retransmitForPush(fd, &rtx);
+                retransmitForPush(fdglob, &rtx);
             }
         }
     }
@@ -629,6 +630,7 @@ void putDataInPacketPush(datagram * packet, int isFinal)
     packet->opID = globalOpID;
     mtxUnlock(&syncMTX);
 }
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
