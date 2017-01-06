@@ -51,8 +51,6 @@ void putDataInPacketPush(datagram * packet, int isFinal);
 int checkUserInput(char * buffer);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int getFileLen(int fd);
-int getSendBase();
-int getSeqNum();
 char * stringParser(char * string);
 
 
@@ -222,6 +220,7 @@ void listenCycle()
 
         memset(&packet, 0, sizeof(datagram));
         res = 0;
+        printWindow();
         printf("insert command : \n");
         struct timespec opStart, opEnd;
 
@@ -508,9 +507,15 @@ void pushSender()
         perror("error in sprintf");
     }
 
+
     printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, getSeqNum());
     putDataInPacketPush(&sndPacket, 1);
+    if(memcpy(&packet, &sndPacket, sizeof(datagram)) == NULL)
+    {
+        perror("error in memcpy");
+    }
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
     while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))
@@ -518,7 +523,7 @@ void pushSender()
         while(isFinal == 0)
         {
 
-            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > 256)
+            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > (WINDOWSIZE - 1))
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
@@ -603,33 +608,16 @@ void initProcessDetails()
     mtxUnlock(&mtxPacketAndDetails);
 }
 
-int getSendBase()
+void putDataInPacketPush(datagram * myPacket, int isFinal)
 {
-    int base;
-    mtxLock(&mtxPacketAndDetails);
-    base = details.sendBase;
-    mtxUnlock(&mtxPacketAndDetails);
-    return base;
-}
-
-int getSeqNum()
-{
-    int seq;
-    mtxLock(&mtxPacketAndDetails);
-    seq = details.mySeq;
-    mtxUnlock(&mtxPacketAndDetails);
-    return seq;
-}
-
-void putDataInPacketPush(datagram * packet, int isFinal)
-{
-    packet->isFinal = (short) isFinal;
-    packet->seqNum = getSeqNum();
-    packet->command = 1;
+    myPacket->isFinal = (short) isFinal;
+    myPacket->seqNum = getSeqNum();
+    myPacket->command = 1;
     mtxLock(&syncMTX);
-    packet->opID = globalOpID;
+    myPacket->opID = globalOpID;
     mtxUnlock(&syncMTX);
 }
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)

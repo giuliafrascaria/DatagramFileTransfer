@@ -182,7 +182,7 @@ void printWindow()
     printf("\n |");
     for (i = 0; i < windowSize; i++)
     {
-        if (i == sendBase % windowSize)
+        if (i == getSendBase() % windowSize)
         {
             printf(" (%d) |", (selectiveWnd)[i].value);
         }
@@ -501,7 +501,8 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     {
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
-            if(packet.opID == getOpID()) {
+            if(packet.opID == getOpID())
+            {
                 isFinal = packet.isFinal;
                 //----------------------------------------------------------------
                 if (isFinal == 0) {
@@ -523,8 +524,8 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 tellSenderSendACK(packet.seqNum, packet.isFinal);
                 memset(&packet, 0, sizeof(datagram));
             }
-            //else
-                //printf("non era una stupidata,globalOPID = %d, opID arrivato = %d\n", opID, packet.opID);
+            else
+                printf("non era una stupidata,globalOPID = %d, opID arrivato = %d\n", getOpID(), packet.opID);
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
@@ -718,4 +719,22 @@ int getOpID()
     opID = globalOpID;
     mtxUnlock(&syncMTX);
     return opID;
+}
+
+int getSeqNum()
+{
+    int seq;
+    mtxLock(&mtxPacketAndDetails);
+    seq = details.mySeq;
+    mtxUnlock(&mtxPacketAndDetails);
+    return seq;
+}
+
+int getSendBase()
+{
+    int base;
+    mtxLock(&mtxPacketAndDetails);
+    base = details.sendBase;
+    mtxUnlock(&mtxPacketAndDetails);
+    return base;
 }
