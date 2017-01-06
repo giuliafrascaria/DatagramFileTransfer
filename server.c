@@ -5,15 +5,14 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <dirent.h>
-#include <semaphore.h>
 #include "server.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -327,6 +326,8 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
         }
         if (sockResult == 1)
         {
+            printf("arrivato ACK del SYN ACK\n");
+
             mtxLock(&mtxPacketAndDetails);
             details.addr = *clientAddr;
             details.Size = slen;
@@ -334,7 +335,13 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             details.remoteSeq = ACK.sequenceNum;
             mtxUnlock(&mtxPacketAndDetails);
 
+            printf("prima di aggiornare\n");
+            printWindow();
+
             ackSentPacket(ACK.ack);
+
+            printf("dopo l'aggiornamento\n");
+            printWindow();
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
         }
@@ -379,10 +386,9 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
 
-    sendBase = SYN_ACK.sequenceNum;
-
     mtxLock(&mtxPacketAndDetails);
     SYN_ACK.ack = details.remoteSeq;
+    details.sendBase = SYN_ACK.sequenceNum;
     mtxUnlock(&mtxPacketAndDetails);
 
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
@@ -528,7 +534,8 @@ void sendCycle(int command)
     mtxUnlock(&mtxPacketAndDetails);
 
     sndPacket.command = 1;
-    sndPacket.isFinal = 1;
+    sndPacket.isFinal = 0;
+    printf("mando il primo pacchetto con la dimensione del file\n");
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
 
 

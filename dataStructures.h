@@ -59,7 +59,7 @@ struct details
     socklen_t Size2;
     int remoteSeq;
     int mySeq;
-    int sendBase;
+    int volatile sendBase;
     int volatile firstSeqNum;
     //struct selectCell selectiveWnd[];
 };
@@ -169,9 +169,6 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 void sendSignalTimer();
 
 int readGlobalTimerStop();
-
-
-
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -102,12 +102,8 @@ void clientSendFunction()
         }
         else
         {
-            mtxLock(&mtxPacketAndDetails);
-            details.sendBase = details.mySeq;
-            details.firstSeqNum= details.mySeq;
-            mtxUnlock(&mtxPacketAndDetails);
-            //pushSender();
-            sendCycle();
+            pushSender();
+            //sendCycle();
         }
     }
 }
@@ -256,7 +252,7 @@ void listenCycle()
                 printf("\n\n\n----------------------------------------------------------------\n");
                 printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
                 printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000 +1));
+                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000 + 1));
                 printf("----------------------------------------------------------------\n");
                 printf("\n\n");
                 //provvisorio
@@ -365,8 +361,7 @@ void listPullListener(int fd, int command)
     mtxLock(&mtxPacketAndDetails);
     packet.command = command;
     packet.isFinal = 1;
-    srandom((unsigned int)getpid());
-    packet.opID = (int) random() % 4096;
+    packet.opID =  rand() % 2048;
 
     mtxLock(&syncMTX);
     globalOpID = packet.opID;
@@ -459,8 +454,7 @@ void pushListener()
     mtxLock(&mtxPacketAndDetails);
     packet.command = 1;
     packet.isFinal = 0;
-    srandom((unsigned int)getpid());
-    packet.opID = (int) random() % 4096;
+    packet.opID =  rand() % 2048;
 
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
@@ -481,10 +475,9 @@ void pushListener()
 void pushSender()
 {
     mtxLock(&mtxPacketAndDetails);
-    volatile int seqnum = details.mySeq;
-    volatile int sndbase = details.sendBase;
+    int seqnum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
-    volatile int finalSeq = -1, isFinal = 0;
+    int finalSeq = -1, isFinal = 0, sndbase = 0;
 
     ssize_t readByte;
     datagram sndPacket;
@@ -521,9 +514,8 @@ void pushSender()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     seqnum = details.mySeq;
-    printf("valore iniziale di sendBase = %d\n", details.sendBase);
 
-    while((((details.sendBase)%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
+    while(((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
     {
         while(isFinal == 0)
         {
@@ -531,8 +523,7 @@ void pushSender()
             sndbase = details.sendBase;
             mtxUnlock(&mtxPacketAndDetails);
 
-            printf("seqnum %d, sndBase %d\n",(details.mySeq)%WINDOWSIZE , (details.sendBase)%WINDOWSIZE);
-            while((details.mySeq)%WINDOWSIZE - (details.sendBase)%WINDOWSIZE > 256)
+            while(seqnum%WINDOWSIZE - sndbase%WINDOWSIZE > 256)
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
@@ -579,8 +570,9 @@ void pushSender()
 
         if ((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE))
         {
-            //printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
-            //printWindow();
+            sleep(4);
+            printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
+            printWindow();
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
@@ -710,11 +702,12 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
     sendACK(socketfd, &ACK, servAddr, servLen);
     //sentPacket(ACK.sequenceNum, 0);
-    printf("ACK finale inviato. Numero di sequenza : %d\n", ACK.sequenceNum);
+    printf("ACK finale inviato. Numero di sequenza : %d ackando il pacchetto %d\n", ACK.sequenceNum, ACK.ack);
 }
 
 void sendCycle()
 {
+    printf("sono il sender del server, sto per fare la list o la pull\n");
     int fd;
     datagram sndPacket;
 
@@ -749,10 +742,9 @@ void sendCycle()
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
     printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
 
-
+    int seqnum = details.mySeq;
 
     mtxLock(&mtxPacketAndDetails);
-    int seqnum = details.mySeq;
     details.firstSeqNum = seqnum;
     int sndBase = details.sendBase;
     mtxUnlock(&mtxPacketAndDetails);
