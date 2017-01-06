@@ -199,7 +199,7 @@ void slideWindow() //secondo me può essere eliminata e messa all'interno di ack
     while(selectiveWnd[details.sendBase%windowSize].value == 2){
         selectiveWnd[details.sendBase%windowSize].value = 0;
         details.sendBase = details.sendBase + 1;
-        printf("mando avanti sendBase, %d\n", details.sendBase);
+        //printf("mando avanti sendBase, %d\n", details.sendBase);
     }
     //mtxUnlock(&mtxPacketAndDetails);
     //printWindow();
@@ -420,11 +420,11 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             {
                 ACK = (handshake *) buffer;
 
-                printf("ricevuto ack del pacchetto %d, finestra prima e dopo\n", ACK->sequenceNum);
-                printWindow();
+                //printf("ricevuto ack del pacchetto %d, finestra prima e dopo\n", ACK->sequenceNum);
+                //printWindow();
                 ackSentPacket(ACK->sequenceNum);
 
-                printWindow();
+                //printWindow();
                 isFinal = ACK->isFinal;
                 //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);

@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -46,10 +46,15 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
 void listenCycle();
 void parseInput(char * s);
 void listPullListener(int fd, int command);
+void initProcessDetails();
+void putDataInPacketPush(datagram * packet, int isFinal);
 int checkUserInput(char * buffer);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int getFileLen(int fd);
+int getSendBase();
+int getSeqNum();
 char * stringParser(char * string);
+
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -456,14 +461,14 @@ void pushListener()
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
 
-    packet.seqNum = details.mySeq;
-    details.firstSeqNum = details.mySeq;
+//    packet.seqNum = details.mySeq;
+//    details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
 
-    mtxLock(&syncMTX);
-    globalOpID = packet.opID;
-    printf("pacchetto inviato OPID %d\n", packet.opID);
-    mtxUnlock(&syncMTX);
+//    mtxLock(&syncMTX);
+//    globalOpID = packet.opID;
+//    printf("pacchetto inviato OPID %d\n", packet.opID);
+//    mtxUnlock(&syncMTX);
     //-----------------------------------------
 
     sendSignalThread(&condMTX2, &senderCond);
@@ -474,14 +479,12 @@ void pushListener()
 
 void pushSender()
 {
-    mtxLock(&mtxPacketAndDetails);
-    int seqnum = details.mySeq;
-    mtxUnlock(&mtxPacketAndDetails);
-    int finalSeq = -1, isFinal = 0, sndbase = 0;
-
+    int finalSeq = -100, isFinal = 0;
     ssize_t readByte;
     datagram sndPacket;
     struct pipeMessage rtx;
+
+    initProcessDetails();
 
     mtxLock(&mtxPacketAndDetails);
     int fd = open(packet.content, O_RDONLY);
@@ -504,34 +507,22 @@ void pushSender()
         perror("error in sprintf");
     }
 
-    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, seqnum);
-    sndPacket.seqNum = seqnum;
-    sndPacket.command = 1;
-    sndPacket.isFinal = 1;
-    mtxLock(&syncMTX);
-    sndPacket.opID = globalOpID;
-    mtxUnlock(&syncMTX);
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, getSeqNum());
+    putDataInPacketPush(&sndPacket, 1);
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
-    seqnum = details.mySeq;
 
-    while(((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE)))
+    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))
     {
         while(isFinal == 0)
         {
-            mtxLock(&mtxPacketAndDetails);
-            sndbase = details.sendBase;
-            mtxUnlock(&mtxPacketAndDetails);
 
-            while(seqnum%WINDOWSIZE - sndbase%WINDOWSIZE > 256)
+            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > 256)
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
                     retransmitForPush(fd, &rtx);
                 }
-                mtxLock(&mtxPacketAndDetails);
-                sndbase = details.sendBase;
-                mtxUnlock(&mtxPacketAndDetails);
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
@@ -539,22 +530,12 @@ void pushSender()
                 readByte = read(fd, sndPacket.content, 512);
                 if (readByte < 512 && readByte >= 0)
                 {
-                    finalSeq = details.mySeq;
+                    finalSeq = getSeqNum();
                     isFinal = 1;
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d, numero di sequenza : %d)\n", (int) readByte, finalSeq);
                 }
-                sndPacket.isFinal = (short) isFinal;
 
-                mtxLock(&mtxPacketAndDetails);
-                sndPacket.ackSeqNum = details.remoteSeq;
-                seqnum = details.mySeq;
-                mtxUnlock(&mtxPacketAndDetails);
-
-                sndPacket.seqNum = seqnum;
-
-                mtxLock(&syncMTX);
-                sndPacket.opID = globalOpID;
-                mtxUnlock(&syncMTX);
+                putDataInPacketPush(&sndPacket, isFinal);
 
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 
@@ -563,16 +544,8 @@ void pushSender()
                 retransmitForPush(fd, &rtx);
         }
 
-        //PROTEGGI CON I MUTEX
-        mtxLock(&mtxPacketAndDetails);
-        sndbase = details.sendBase;
-        mtxUnlock(&mtxPacketAndDetails);
-
-        if ((sndbase%WINDOWSIZE) != (finalSeq%WINDOWSIZE))
+        if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
         {
-            sleep(4);
-            printf("sndBase modulo WINDOWSIZE = %d, finalseq modulo c0se = %d\n", (sndbase%WINDOWSIZE),(finalSeq%WINDOWSIZE) );
-            printWindow();
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 retransmitForPush(fd, &rtx);
             }
@@ -582,7 +555,7 @@ void pushSender()
     mtxLock(&mtxPacketAndDetails);
     memset(sndPacket.content, 0, 512);
     mtxUnlock(&mtxPacketAndDetails);
-    sndPacket.isFinal = -1;
+    putDataInPacketPush(&sndPacket, -1);
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
@@ -605,20 +578,57 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     }
 
     sndPacket.isFinal = rtx->isFinal;
+    sndPacket.seqNum = rtx->seqNum;
+    sndPacket.command = 1;
+    mtxLock(&syncMTX);
+    sndPacket.opID = globalOpID;
+    mtxUnlock(&syncMTX);
 
     mtxLock(&mtxPacketAndDetails);
     sndPacket.ackSeqNum = details.remoteSeq;
     mtxUnlock(&mtxPacketAndDetails);
 
-    sndPacket.seqNum = rtx->seqNum;
-
-    mtxLock(&syncMTX);
-    sndPacket.opID = globalOpID;
-    mtxUnlock(&syncMTX);
-
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
 }
 
+void initProcessDetails()
+{
+    mtxLock(&mtxPacketAndDetails);
+    initWindow();
+    details.mySeq= rand() %2048;
+    details.sendBase = details.mySeq;
+    details.firstSeqNum = details.sendBase;
+    globalOpID = rand() %2048;
+    mtxUnlock(&mtxPacketAndDetails);
+}
+
+int getSendBase()
+{
+    int base;
+    mtxLock(&mtxPacketAndDetails);
+    base = details.sendBase;
+    mtxUnlock(&mtxPacketAndDetails);
+    return base;
+}
+
+int getSeqNum()
+{
+    int seq;
+    mtxLock(&mtxPacketAndDetails);
+    seq = details.mySeq;
+    mtxUnlock(&mtxPacketAndDetails);
+    return seq;
+}
+
+void putDataInPacketPush(datagram * packet, int isFinal)
+{
+    packet->isFinal = (short) isFinal;
+    packet->seqNum = getSeqNum();
+    packet->command = 1;
+    mtxLock(&syncMTX);
+    packet->opID = globalOpID;
+    mtxUnlock(&syncMTX);
+}
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CONNESSIONE
 
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
@@ -830,3 +840,5 @@ void sendCycle()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
+
+
