@@ -19,7 +19,6 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
-int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
 volatile int globalTimerStop = 0;
@@ -627,10 +626,9 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     srandom((unsigned int)getpid());
     SYN.sequenceNum = (int) random() % 4096;
 
-    sendBase = SYN.sequenceNum;
-
     // il prossimo seqnum utile
     mtxLock(&mtxPacketAndDetails);
+    details.sendBase = SYN.sequenceNum;
     details.remoteSeq = SYN.sequenceNum;
     mtxUnlock(&mtxPacketAndDetails);
 

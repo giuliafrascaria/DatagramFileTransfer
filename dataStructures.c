@@ -13,7 +13,7 @@
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
 extern struct details details;
-extern int  timerSize, nanoSleep, windowSize, sendBase;
+extern int  timerSize, nanoSleep, windowSize;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
 extern volatile int finalLen, globalTimerStop;

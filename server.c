@@ -17,7 +17,6 @@
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
 int windowSize = WINDOWSIZE;
-int sendBase;
 int pipeFd[2];
 int pipeSendACK[2];
 datagram packet;
