@@ -139,12 +139,13 @@ void initProcess()
     //printf("ho settato la socket a non bloccante\n");
 
     //printf("starting handshake procedure\n\n");
+    while(readGlobalTimerStop() != 2){}
     startClientConnection( &senderServerAddress, serverLen, socketfd);
 }
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
-    while(readGlobalTimerStop() != 2){}
+
 
     sendSYN(servAddr, servLen, socketfd);
     int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);

@@ -257,10 +257,8 @@ void mtxUnlock(pthread_mutex_t * mtx)
 void * timerFunction()  //<<----------------------------< togli il ciclo inifnito
 {
     printf("timer thread attivato\n\n");
+    int i = 0;
 
-    mtxLock(&syncMTX);
-    globalTimerStop = 2;
-    mtxUnlock(&syncMTX);
 
     struct timer * currentTimer;
     struct pipeMessage rtxN;
@@ -272,6 +270,14 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
         mtxLock(&currentTSMTX);
         currentTimeSlot = 0;
         mtxUnlock(&currentTSMTX);
+
+        if(i == 0)
+        {
+            i++;
+            mtxLock(&syncMTX);
+            globalTimerStop = 2;
+            mtxUnlock(&syncMTX);
+        }
 
         if(pthread_cond_wait(&condTimerSleep, &mtxTimerSleep) == -1)
         {

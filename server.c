@@ -245,6 +245,8 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
 
     //mando il datagramma ancora senza connettermi
 
+    while(readGlobalTimerStop() != 2){}
+
     sendSYNACK(privateSocket, socklen, cl);
     terminateConnection(privateSocket, &(cl->addr), socklen, cl);
 
@@ -388,7 +390,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
 
-    while(readGlobalTimerStop() != 2){}
+
 
     sendSignalTimer();
 
