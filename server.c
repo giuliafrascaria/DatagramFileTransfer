@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 5000000
+#define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -23,8 +23,7 @@ datagram packet;
 
 volatile int finalLen, globalOpID, globalTimerStop = 0;
 
-struct selectCell selectiveWnd[WINDOWSIZE];
-struct headTimer timerWheel[TIMERSIZE] = {NULL};
+
 struct details details;
 
 pthread_t timerThread;

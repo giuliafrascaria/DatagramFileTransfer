@@ -10,10 +10,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 5000000
+#define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -24,7 +24,7 @@ int pipeSendACK[2];
 volatile int globalTimerStop = 0;
 volatile int globalOpID;
 volatile int fdList, finalLen;
-struct headTimer timerWheel[TIMERSIZE] = {NULL};
+
 datagram packet;
 
 int fdglob;
@@ -56,7 +56,7 @@ char * stringParser(char * string);
 
 struct details details;
 pthread_t listenThread, timerThread;
-struct selectCell selectiveWnd[WINDOWSIZE];
+
 
 pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
@@ -398,7 +398,9 @@ void listPullListener(int fd, int command)
     printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
     mtxUnlock(&syncMTX);
 
+    mtxLock(&mtxPacketAndDetails);
     details.remoteSeq = firstDatagram.seqNum;
+    mtxUnlock(&mtxPacketAndDetails);
     tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
     printf("aspetto datagrammi\n");
@@ -577,9 +579,9 @@ void pushSender()
         }
     }
     printf("mi appresto a mandare il pacchetto finale\n");
-    mtxLock(&mtxPacketAndDetails);
+    //mtxLock(&mtxPacketAndDetails);
     memset(sndPacket.content, 0, 512);
-    mtxUnlock(&mtxPacketAndDetails);
+    //mtxUnlock(&mtxPacketAndDetails);
     putDataInPacketPush(&sndPacket, -1);
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
