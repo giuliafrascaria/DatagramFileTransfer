@@ -259,12 +259,16 @@ void listenCycle()
 
                 ssize_t len = lseek(fdglob, 0, SEEK_END)+1;
 
-                printf("\n\n\n----------------------------------------------------------------\n");
-                printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec - opStart.tv_nsec) / 1000000);
-                printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                printf("|\tvelocità media: %f B/us  \n", (len)/((opEnd.tv_nsec - opStart.tv_nsec)/1000 + 0.0001));
-                printf("----------------------------------------------------------------\n");
-                printf("\n\n");
+                if(len > 0)
+                {
+                    printf("\n\n\n----------------------------------------------------------------\n");
+                    printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec - opStart.tv_nsec) / 1000000);
+                    printf("|\tdimensione del file: %d kB\n", (int) len/1000);
+                    printf("|\tvelocità media: %f MB/s  \n", (len/1000000)/((opEnd.tv_sec - opStart.tv_sec)+ 0.0001));
+                    printf("----------------------------------------------------------------\n");
+                    printf("\n\n");
+                }
+
                 //provvisorio
                 //poi mi devo mettere a sentire i dati ricevuti dalla socket
                 //res = 0;
@@ -534,7 +538,10 @@ void pushSender()
             {
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
-                    retransmitForPush(fdglob, &rtx);
+                    //retransmitForPush(fdglob, &rtx);
+                    printf("ritrasmetto\n");
+                    sndPacket = rebuildDatagram(fdglob, rtx);
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
                 }
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
@@ -554,13 +561,21 @@ void pushSender()
 
             }
             else
-                retransmitForPush(fdglob, &rtx);
+            {
+                printf("ritrasmetto\n");
+                sndPacket = rebuildDatagram(fdglob, rtx);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                //retransmitForPush(fdglob, &rtx);
+            }
         }
 
         if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
         {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                retransmitForPush(fdglob, &rtx);
+                //retransmitForPush(fdglob, &rtx);
+                printf("ritrasmetto\n");
+                sndPacket = rebuildDatagram(fdglob, rtx);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
             }
         }
     }

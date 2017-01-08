@@ -161,7 +161,13 @@ void ackSentPacket(int ackN)
 
         //--------------------------------------------------------------------------------andrà protetto con un mutex--------------------
 
-        (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
+        //non ritrasmettere se il thread timer sta troppo vicino
+        if(getWheelPosition() == (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel)
+        {
+            //non fermo il timer
+        }
+        else
+             (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
         //printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
         //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
@@ -291,9 +297,11 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
             while (currentTimer != NULL)
             {
                 rtxN.seqNum = currentTimer->seqNum;
+                //rtxN.isFinal = 0;---------------------------------------gestire questo
+
                 printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
-                //rtxN.isFinal = 0;
+
                 if (currentTimer->isValid) {
                     if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
                         perror("error in pipe write");
@@ -345,6 +353,8 @@ int getWheelPosition()
 
 void startTimer(int packetN, int posInWheel)
 {
+    memset(&((selectiveWnd[(packetN)%(windowSize)]).packetTimer), 0, sizeof(struct timer));
+
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).seqNum = packetN;
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).isValid = 1;
     (selectiveWnd[(packetN)%(windowSize)].packetTimer).posInWheel = posInWheel;
@@ -637,17 +647,30 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
 
 datagram rebuildDatagram(int fd, struct pipeMessage pm)
 {
+    ssize_t readByte;
     datagram sndPacket;
+    readByte = read(fd, sndPacket.content, 512);
     if(lseek(fd, 512*(pm.seqNum - details.firstSeqNum), SEEK_SET) == -1)
     {
         perror("errore in lseek");
     }
-    if(read(fd, sndPacket.content, 512)==-1)
+    if( readByte == -1)
     {
         perror("error in read");
     }
+    if(readByte == 0)
+    {
+        sndPacket.isFinal = -1;
+    }
+    if(readByte < 512 && readByte > 0)
+    {
+        sndPacket.isFinal = 1;
+    }
+    if(readByte == 512)
+    {
+        sndPacket.isFinal = 0;
+    }
 
-    sndPacket.isFinal = pm.isFinal;
     sndPacket.ackSeqNum = details.remoteSeq;
     sndPacket.seqNum = pm.seqNum;
     printf("ritrasmetto %d\n", pm.seqNum);
