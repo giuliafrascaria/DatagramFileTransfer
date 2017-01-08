@@ -219,7 +219,7 @@ void listenCycle()
 
         memset(&packet, 0, sizeof(datagram));
         res = 0;
-        printWindow();
+        //printWindow();
         printf("insert command : \n");
         struct timespec opStart, opEnd;
 
@@ -380,7 +380,7 @@ void listPullListener(int fd, int command)
     datagram firstDatagram;
     while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
 
-    printf("faccio un sscanf\n");
+//    printf("faccio un sscanf\n");
 
     mtxLock(&syncMTX);
     if(sscanf(firstDatagram.content, "%d", &finalLen) == EOF)
@@ -390,6 +390,7 @@ void listPullListener(int fd, int command)
     printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
     mtxUnlock(&syncMTX);
 
+    details.remoteSeq = firstDatagram.seqNum;
     tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
     printf("aspetto datagrammi\n");
@@ -514,7 +515,7 @@ void pushSender()
         perror("error in memcpy");
     }
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
-    printWindow();
+    //printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
     while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))

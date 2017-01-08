@@ -170,7 +170,8 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
     else {
-        printf("mi hai ackato qualcosa che non ho mai inviato\n");
+        printf("mi hai ackato qualcosa che non ho mai inviato, %d\n", ackN);
+        printWindow();
         mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
     }
     //printf("esco da acksentpacket\n");
@@ -196,10 +197,12 @@ void printWindow()
 void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
 {
 
-    while(selectiveWnd[details.sendBase%windowSize].value == 2){
-        mtxLock(&(selectiveWnd[details.sendBase % windowSize]).cellMtx);
-        selectiveWnd[details.sendBase%windowSize].value = 0;
-        mtxUnlock(&(selectiveWnd[details.sendBase % windowSize]).cellMtx);
+    while(selectiveWnd[getSendBase()%windowSize].value == 2)
+    {
+        mtxLock(&(selectiveWnd[getSendBase()% windowSize]).cellMtx);
+        selectiveWnd[getSendBase()%windowSize].value = 0;
+        mtxUnlock(&(selectiveWnd[getSendBase() % windowSize]).cellMtx);
+
         mtxLock(&mtxPacketAndDetails);
         details.sendBase = details.sendBase + 1;
         mtxUnlock(&mtxPacketAndDetails);
@@ -250,13 +253,15 @@ void mtxUnlock(pthread_mutex_t * mtx)
 }
 
 //-----------------------------------------------------------------------------------------------------------------TIMER
-void * timerFunction()
+
+void * timerFunction()  //<<----------------------------< togli il ciclo inifnito
 {
     //printf("timer thread attivato\n\n");
     struct timer * currentTimer;
     struct pipeMessage rtxN;
     for(;;)
     {
+//        for(;;)
 
         initTimerWheel();
         mtxLock(&currentTSMTX);
@@ -270,13 +275,12 @@ void * timerFunction()
 
         while(readGlobalTimerStop() == 1)
         {
-            mtxLock(&currentTSMTX);
-            currentTimer = timerWheel[currentTimeSlot].nextTimer;
-            mtxUnlock(&currentTSMTX);
+            currentTimer = timerWheel[getCurrentTimeSlot()].nextTimer;
 
-            while (currentTimer != NULL) {
-
+            while (currentTimer != NULL)
+            {
                 rtxN.seqNum = currentTimer->seqNum;
+                printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
                 //rtxN.isFinal = 0;
                 if (currentTimer->isValid) {
@@ -422,8 +426,8 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             if (msgLen == sizeof(handshake))
             {
                 ACK = (handshake *) buffer;
-                ackSentPacket(ACK->sequenceNum);
                 isFinal = ACK->isFinal;
+                ackSentPacket(ACK->sequenceNum);
                 //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
@@ -434,8 +438,6 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 duplicatePacket = (datagram *) buffer;
                 tellSenderSendACK(duplicatePacket->seqNum, duplicatePacket->isFinal);
             }
-
-
         }
     }
 
@@ -519,9 +521,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     ackreceived = 1;
                 }
 
-
                 details.remoteSeq = packet.seqNum;
                 tellSenderSendACK(packet.seqNum, packet.isFinal);
+                //printf("dico di ackare il pacchetto numero %d con isFinal %d\n", packet.seqNum, packet.isFinal);
                 memset(&packet, 0, sizeof(datagram));
             }
             else
@@ -533,6 +535,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
 }
 
+/*
 int checkWindowSendBase()
 {
     for(int i = 0; i < windowSize; i++)
@@ -544,11 +547,12 @@ int checkWindowSendBase()
     }
     return 1;
 }
+*/
 
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
-    //printf("\nseqnum = %d, firstnum = %d\n", seqnum, firstnum);
+    //printf("\nseqnum = %d, firstnum = %d, offset = %d\n", seqnum, firstnum, offset);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -620,7 +624,6 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
 
 datagram rebuildDatagram(int fd, struct pipeMessage pm)
 {
-    printf("ritrasmetto\n");
     datagram sndPacket;
     if(lseek(fd, 512*(pm.seqNum - details.firstSeqNum), SEEK_SET) == -1)
     {
@@ -634,10 +637,8 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm)
     sndPacket.isFinal = pm.isFinal;
     sndPacket.ackSeqNum = details.remoteSeq;
     sndPacket.seqNum = pm.seqNum;
-
-    mtxLock(&syncMTX);
-    sndPacket.opID = globalOpID;
-    mtxUnlock(&syncMTX);
+    printf("ritrasmetto %d\n", pm.seqNum);
+    sndPacket.opID = getOpID();
 
     return sndPacket;
 }
@@ -737,4 +738,13 @@ int getSendBase()
     base = details.sendBase;
     mtxUnlock(&mtxPacketAndDetails);
     return base;
+}
+
+int getCurrentTimeSlot()
+{
+    int cts;
+    mtxLock(&currentTSMTX);
+    cts = currentTimeSlot;
+    mtxUnlock(&currentTSMTX);
+    return cts;
 }

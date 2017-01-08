@@ -528,9 +528,10 @@ void sendCycle(int command)
         perror("error in sprintf");
     }
 
-    mtxLock(&mtxPacketAndDetails);
-    sndPacket.seqNum = details.mySeq;
-    mtxUnlock(&mtxPacketAndDetails);
+//    mtxLock(&mtxPacketAndDetails);
+//    sndPacket.seqNum = details.mySeq;
+    sndPacket.seqNum = getSeqNum();
+//    mtxUnlock(&mtxPacketAndDetails);
 
     sndPacket.command = 1;
     sndPacket.isFinal = 0;
@@ -541,27 +542,30 @@ void sendCycle(int command)
     waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
     printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
 
-    int seqnum = details.mySeq;
+//    int seqnum = details.mySeq;
 
-    mtxLock(&mtxPacketAndDetails);
-    details.firstSeqNum = seqnum;
-    int sndBase = details.sendBase;
-    mtxUnlock(&mtxPacketAndDetails);
+//    mtxLock(&mtxPacketAndDetails);
+//    details.firstSeqNum = seqnum;
+    details.firstSeqNum = getSeqNum();
+//    int sndBase = details.sendBase;
+//    mtxUnlock(&mtxPacketAndDetails);
 
     int finalSeq = -1;
     int isFinal = 0;
     ssize_t readByte;
 
     struct pipeMessage rtx;
-    while(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
+    //while(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
+    while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
     {
         while(isFinal == 0)
         {
-            mtxLock(&mtxPacketAndDetails);
-            sndBase = details.sendBase;
-            mtxUnlock(&mtxPacketAndDetails);
+//            mtxLock(&mtxPacketAndDetails);
+//            sndBase = details.sendBase;
+//            mtxUnlock(&mtxPacketAndDetails);
 
-            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
+//            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
+            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > 256)
             {
                 if (checkPipe(&rtx, pipeFd[0]) != 0)
                 {
@@ -569,9 +573,9 @@ void sendCycle(int command)
                     sndPacket = rebuildDatagram(fd, rtx);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
                 }
-                mtxLock(&mtxPacketAndDetails);
-                sndBase = details.sendBase;
-                mtxUnlock(&mtxPacketAndDetails);
+//                mtxLock(&mtxPacketAndDetails);
+//                sndBase = details.sendBase;
+//                mtxUnlock(&mtxPacketAndDetails);
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
@@ -579,7 +583,8 @@ void sendCycle(int command)
                 readByte = read(fd, sndPacket.content, 512);
                 if (readByte < 512 && readByte >= 0)
                 {
-                    finalSeq = seqnum;
+//                    finalSeq = seqnum;
+                    finalSeq = getSeqNum();
                     isFinal = 1;
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
                 }
@@ -589,7 +594,8 @@ void sendCycle(int command)
                 sndPacket.ackSeqNum = details.remoteSeq;
                 mtxUnlock(&mtxPacketAndDetails);
 
-                sndPacket.seqNum = seqnum;
+//                sndPacket.seqNum = seqnum;
+                sndPacket.seqNum = getSeqNum();
 
                 mtxLock(&syncMTX);
                 sndPacket.opID = globalOpID;
@@ -597,7 +603,7 @@ void sendCycle(int command)
 
                 //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
-                seqnum = details.mySeq;
+//                seqnum = details.mySeq;
 
             }
             else
@@ -608,12 +614,13 @@ void sendCycle(int command)
             }
         }
 
-        mtxLock(&mtxPacketAndDetails);
-        sndBase = details.sendBase;
-        //printf("sndbase = %d\n", details.sendBase);
-        mtxUnlock(&mtxPacketAndDetails);
+//        mtxLock(&mtxPacketAndDetails);
+//        sndBase = details.sendBase;
+//        //printf("sndbase = %d\n", details.sendBase);
+//        mtxUnlock(&mtxPacketAndDetails);
 
-        if(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
+//        if(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
+        if(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
@@ -625,7 +632,7 @@ void sendCycle(int command)
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
+    sndPacket.seqNum = getSeqNum();
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
-    printWindow();
 }
