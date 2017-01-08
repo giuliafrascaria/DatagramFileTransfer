@@ -98,7 +98,7 @@ void clientSendFunction()
         printf("\n\nsono il sender e sono stato svegliato\n\n");
         if(packet.command == 0 || packet.command == 2)
         {
-            sendDatagram(details.sockfd, &details.addr, details.Size, &packet);
+            sendDatagram(details.sockfd, &details.addr, details.Size, &packet, 0);
             printf("pacchetto inviato \n\n");
             ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
         }
@@ -525,7 +525,7 @@ void pushSender()
     {
         perror("error in memcpy");
     }
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     //printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
@@ -541,7 +541,7 @@ void pushSender()
                     //retransmitForPush(fdglob, &rtx);
                     printf("ritrasmetto\n");
                     sndPacket = rebuildDatagram(fdglob, rtx);
-                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
             }
             if (checkPipe(&rtx, pipeFd[0]) == 0)
@@ -557,14 +557,14 @@ void pushSender()
 
                 putDataInPacketPush(&sndPacket, isFinal);
 
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
 
             }
             else
             {
                 printf("ritrasmetto\n");
                 sndPacket = rebuildDatagram(fdglob, rtx);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 //retransmitForPush(fdglob, &rtx);
             }
         }
@@ -575,7 +575,7 @@ void pushSender()
                 //retransmitForPush(fdglob, &rtx);
                 printf("ritrasmetto\n");
                 sndPacket = rebuildDatagram(fdglob, rtx);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
     }
@@ -584,7 +584,7 @@ void pushSender()
     memset(sndPacket.content, 0, 512);
     mtxUnlock(&mtxPacketAndDetails);
     putDataInPacketPush(&sndPacket, -1);
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 
@@ -616,7 +616,7 @@ void retransmitForPush(int fd, struct pipeMessage * rtx)
     sndPacket.ackSeqNum = details.remoteSeq;
     mtxUnlock(&mtxPacketAndDetails);
 
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
 }
 
 void initProcessDetails()
@@ -758,7 +758,7 @@ void sendCycle()
 
     sndPacket.command = 1;
     sndPacket.isFinal = 1;
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
 
 
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
@@ -790,7 +790,7 @@ void sendCycle()
                 {
                     printf("ritrasmetto\n");
                     sndPacket = rebuildDatagram(fd, rtx);
-                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
                 mtxLock(&mtxPacketAndDetails);
                 sndBase = details.sendBase;
@@ -819,7 +819,7 @@ void sendCycle()
                 mtxUnlock(&syncMTX);
 
                 //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
                 seqnum = details.mySeq;
 
             }
@@ -827,7 +827,7 @@ void sendCycle()
             {
                 //ritrasmetti
                 sndPacket = rebuildDatagram(fd, rtx);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
 
@@ -843,12 +843,12 @@ void sendCycle()
             {
                 printf("ritrasmetto\n");
                 sndPacket = rebuildDatagram(fd, rtx);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket);
+    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }

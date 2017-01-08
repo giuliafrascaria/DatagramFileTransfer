@@ -131,20 +131,22 @@ void initWindow()
 
 void sentPacket(int packetN, int retransmission)
 {
+    mtxLock(&(selectiveWnd[packetN % windowSize]).cellMtx);
+
+    (selectiveWnd[packetN % windowSize]).value = 1;
+    ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
+    //printf("updated selective repeat\n");
+
+    int pos = getWheelPosition();
+    startTimer(packetN, pos);
+
+    mtxUnlock(&(selectiveWnd[packetN % windowSize]).cellMtx);
+
     if(retransmission == 0)
     {
-        mtxLock(&(selectiveWnd[packetN % windowSize]).cellMtx);
-
-        (selectiveWnd[packetN % windowSize]).value = 1;
-        ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
-        //printf("updated selective repeat\n");
-
-        int pos = getWheelPosition();
-        startTimer(packetN, pos);
-
-        mtxUnlock(&(selectiveWnd[packetN % windowSize]).cellMtx);
-
+        mtxLock(&mtxPacketAndDetails);
         details.mySeq = (packetN+1)%8192;
+        mtxUnlock(&mtxPacketAndDetails);
     }
 }
 
@@ -168,7 +170,7 @@ void ackSentPacket(int ackN)
         }
         else
              (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
-        //printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
+        printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
         //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
@@ -337,6 +339,7 @@ void clockTick()
     mtxLock(&currentTSMTX);
 
     currentTimeSlot = (currentTimeSlot + 1) % timerSize;
+    printf("%d\n", currentTimeSlot);
 
     mtxUnlock(&currentTSMTX);
 }
@@ -347,7 +350,7 @@ int getWheelPosition()
     int pos = (currentTimeSlot + offset)%timerSize;
 
     mtxUnlock(&currentTSMTX);
-    //printf("timer will be set in position %d\n\n", pos);
+    printf("timer will be set in position %d and the timer thread is in position %d\n\n", pos, currentTimeSlot);
     return(pos);
 }
 
@@ -367,7 +370,7 @@ void startTimer(int packetN, int posInWheel)
         ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
 
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
-    //printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
+    printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
 }
 
 void initTimerWheel()
@@ -402,9 +405,9 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
     }
 }
 
-void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket)
+void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx)
 {
-    sentPacket(sndPacket->seqNum, 0);
+    sentPacket(sndPacket->seqNum, rtx);
 
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
@@ -719,7 +722,7 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
         else if (checkPipe(pm, pipeFd[0]) == 1)
         {
             //datagram packetRTX = rebuildDatagram(*pm);
-            sendDatagram(socketfd, servAddr, servLen, &packet);
+            sendDatagram(socketfd, servAddr, servLen, &packet, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("\n\nritrasmetto\n");
         }

@@ -545,7 +545,7 @@ void sendCycle(int command)
     sndPacket.command = 1;
     sndPacket.isFinal = 0;
     printf("mando il primo pacchetto con la dimensione del file\n");
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
 
 
     waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
@@ -580,7 +580,7 @@ void sendCycle(int command)
                 {
                     printf("ritrasmetto\n");
                     sndPacket = rebuildDatagram(fd, rtx);
-                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 }
 //                mtxLock(&mtxPacketAndDetails);
 //                sndBase = details.sendBase;
@@ -611,7 +611,7 @@ void sendCycle(int command)
                 mtxUnlock(&syncMTX);
 
                 //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
 //                seqnum = details.mySeq;
 
             }
@@ -619,7 +619,7 @@ void sendCycle(int command)
             {
                 //ritrasmetti
                 sndPacket = rebuildDatagram(fd, rtx);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             }
         }
 
@@ -635,13 +635,13 @@ void sendCycle(int command)
             {
                 printf("ritrasmetto\n");
                 sndPacket = rebuildDatagram(fd, rtx);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             }
         }
     }
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
     sndPacket.seqNum = getSeqNum();
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket);
+    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
