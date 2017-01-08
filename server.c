@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -137,6 +137,9 @@ void finishHandshake()
     else
     {
         //ho finito la connessione, aspetto che mi svegli il listener
+        mtxLock(&syncMTX);
+        globalTimerStop = 0;
+        mtxUnlock(&syncMTX);
         printf("fine, sono pronto\n\n");
     }
 }
@@ -384,6 +387,10 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
+
+    while(readGlobalTimerStop() != 2){}
+
+    sendSignalTimer();
 
     mtxLock(&mtxPacketAndDetails);
     SYN_ACK.ack = details.remoteSeq;

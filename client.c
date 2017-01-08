@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -144,6 +144,8 @@ void initProcess()
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
+    while(readGlobalTimerStop() != 2){}
+
     sendSYN(servAddr, servLen, socketfd);
     int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);
     if(rcvSequence == -1)
@@ -191,6 +193,10 @@ void * clientListenFunction()
     sendSYN2(&(details.addr), details.Size, details.sockfd2);
     waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2);
     send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
+
+    mtxLock(&syncMTX);
+    globalTimerStop = 0;
+    mtxUnlock(&syncMTX);
 
     listenCycle();
     return (EXIT_SUCCESS);
@@ -253,9 +259,9 @@ void listenCycle()
                 ssize_t len = lseek(fdglob, 0, SEEK_END)+1;
 
                 printf("\n\n\n----------------------------------------------------------------\n");
-                printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_sec - opStart.tv_sec) * 1000);
+                printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec - opStart.tv_nsec) / 1000000);
                 printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                printf("|\tvelocità media: %lu kB/s  \n", (len/1000)/((opEnd.tv_nsec - opStart.tv_nsec)/1000000000 + 1));
+                printf("|\tvelocità media: %f B/us  \n", (len)/((opEnd.tv_nsec - opStart.tv_nsec)/1000 + 0.0001));
                 printf("----------------------------------------------------------------\n");
                 printf("\n\n");
                 //provvisorio
@@ -623,6 +629,8 @@ void putDataInPacketPush(datagram * myPacket, int isFinal)
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
+
+    sendSignalTimer();
 
     srandom((unsigned int)getpid());
     SYN.sequenceNum = (int) random() % 4096;

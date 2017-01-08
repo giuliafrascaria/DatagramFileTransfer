@@ -256,7 +256,12 @@ void mtxUnlock(pthread_mutex_t * mtx)
 
 void * timerFunction()  //<<----------------------------< togli il ciclo inifnito
 {
-    //printf("timer thread attivato\n\n");
+    printf("timer thread attivato\n\n");
+
+    mtxLock(&syncMTX);
+    globalTimerStop = 2;
+    mtxUnlock(&syncMTX);
+
     struct timer * currentTimer;
     struct pipeMessage rtxN;
     for(;;)
@@ -288,7 +293,7 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
                         perror("error in pipe write");
                     }
                 }
-                //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
+                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
                 currentTimer->isValid = 0;
                 mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
@@ -300,6 +305,7 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
             }
+            printf("\n");
         }
     }
 }
@@ -476,6 +482,7 @@ void closeFile(int fd)
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
 {
+
     mtxLock(mtx);
     if(pthread_cond_signal(condition) != 0)
     {
@@ -703,7 +710,7 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 
 void sendSignalTimer()
 {
-    //PROTEGGI CON MUTEX     <<-------------------------------------<
+    printf("sto mandando il segnale al timer\n");
     mtxLock(&syncMTX);
     globalTimerStop = 1;
     mtxUnlock(&syncMTX);
@@ -711,6 +718,7 @@ void sendSignalTimer()
     {
         perror("error in cond_signal timer");
     }
+    printf("mandato segnale al timer\n");
 }
 
 int getOpID()
