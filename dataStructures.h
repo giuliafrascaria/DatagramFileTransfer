@@ -50,7 +50,7 @@ typedef struct handshake_t
 
 struct details
 {
-    int windowDimension;
+    //int windowDimension;
     struct sockaddr_in addr;
     struct sockaddr_in addr2;
     int sockfd;
@@ -154,7 +154,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm);
 
 void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
 
-void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd);
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command);
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
 

@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 5000000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -204,7 +204,7 @@ void listenCycle()
                     int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, packet.isFinal);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
-                    getResponse(details.sockfd, &(details.addr), &(details.Size), fd);
+                    getResponse(details.sockfd, &(details.addr), &(details.Size), fd, 1);
                 }
 
                 timeout = 0;
@@ -386,6 +386,7 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
 
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
 {
+    sendSignalTimer();
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
@@ -574,7 +575,7 @@ void sendCycle(int command)
 //            mtxUnlock(&mtxPacketAndDetails);
 
 //            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
-            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > 256)
+            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > WINDOWSIZE-10)
             {
                 if (checkPipe(&rtx, pipeFd[0]) != 0)
                 {
@@ -590,7 +591,7 @@ void sendCycle(int command)
             {
                 memset(sndPacket.content, 0, 512);
                 readByte = read(fd, sndPacket.content, 512);
-                if (readByte < 512 && readByte >= 0)
+                if (readByte == finalLen)
                 {
 //                    finalSeq = seqnum;
                     finalSeq = getSeqNum();

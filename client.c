@@ -5,15 +5,15 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/sendfile.h>
-#include <sys/time.h>
+//#include <sys/time.h>
 #include "dataStructures.h"
 
 #define WINDOWSIZE 256
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 5000000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -40,7 +40,6 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 void printfListInSTDOUT();
 void pushListener();
 void initProcess();
-void sendCycle();
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 void listenCycle();
 void parseInput(char * s);
@@ -145,8 +144,6 @@ void initProcess()
 
 void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
-
-
     sendSYN(servAddr, servLen, socketfd);
     int rcvSequence = waitForSYNACK(servAddr, servLen, socketfd);
     if(rcvSequence == -1)
@@ -405,7 +402,7 @@ void listPullListener(int fd, int command)
     tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
     printf("aspetto datagrammi\n");
-    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd);
+    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd, 0);
 
     if(command == 0)
     {
@@ -645,13 +642,11 @@ void putDataInPacketPush(datagram * myPacket, int isFinal)
 void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 {
     handshake SYN;
-
     sendSignalTimer();
 
     srandom((unsigned int)getpid());
     SYN.sequenceNum = (int) random() % 4096;
 
-    // il prossimo seqnum utile
     mtxLock(&mtxPacketAndDetails);
     details.sendBase = SYN.sequenceNum;
     details.remoteSeq = SYN.sequenceNum;
@@ -659,7 +654,6 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 
     sendACK(socketfd, &SYN, servAddr, servLen);
     sentPacket(SYN.sequenceNum, 0);
-
 
     printf("ho inviato il SYN. numero di sequenza : %d\n", SYN.sequenceNum);
 }
@@ -727,6 +721,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     printf("ACK finale inviato. Numero di sequenza : %d ackando il pacchetto %d\n", ACK.sequenceNum, ACK.ack);
 }
 
+/*
 void sendCycle()
 {
     printf("sono il sender del server, sto per fare la list o la pull\n");
@@ -852,3 +847,4 @@ void sendCycle()
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
+*/

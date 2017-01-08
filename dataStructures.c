@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include "dataStructures.h"
 
+#define MAXSEQNUM 8192
 
 extern struct selectCell selectiveWnd[];
 extern struct headTimer timerWheel[];
@@ -22,7 +23,7 @@ extern int globalOpID;
 
 extern pthread_mutex_t syncMTX;
 
-volatile int currentTimeSlot;
+volatile int currentTimeSlot, rounds = 0;
 
 pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
@@ -145,7 +146,7 @@ void sentPacket(int packetN, int retransmission)
     if(retransmission == 0)
     {
         mtxLock(&mtxPacketAndDetails);
-        details.mySeq = (packetN+1)%8192;
+        details.mySeq = (packetN+1)%MAXSEQNUM;
         mtxUnlock(&mtxPacketAndDetails);
     }
 }
@@ -170,7 +171,7 @@ void ackSentPacket(int ackN)
         }
         else
              (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
-        printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
+        //printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
         //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
@@ -202,7 +203,7 @@ void printWindow()
     printf("\n");
 }
 
-void slideWindow() //secondo me può essere eliminata e messa all'interno di ackSentPacket, alla fine sono tre righe
+void slideWindow()
 {
 
     while(selectiveWnd[getSendBase()%windowSize].value == 2)
@@ -262,7 +263,7 @@ void mtxUnlock(pthread_mutex_t * mtx)
 
 //-----------------------------------------------------------------------------------------------------------------TIMER
 
-void * timerFunction()  //<<----------------------------< togli il ciclo inifnito
+void * timerFunction()
 {
     printf("timer thread attivato\n\n");
     int i = 0;
@@ -286,7 +287,6 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
             globalTimerStop = 2;
             mtxUnlock(&syncMTX);
         }
-
         if(pthread_cond_wait(&condTimerSleep, &mtxTimerSleep) == -1)
         {
             perror("error in cond_wait timer");
@@ -295,13 +295,12 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
         while(readGlobalTimerStop() == 1)
         {
             currentTimer = timerWheel[getCurrentTimeSlot()].nextTimer;
-
             while (currentTimer != NULL)
             {
                 rtxN.seqNum = currentTimer->seqNum;
                 //rtxN.isFinal = 0;---------------------------------------gestire questo
 
-                printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
+                //printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid) {
@@ -309,7 +308,7 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
                         perror("error in pipe write");
                     }
                 }
-                printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
+                //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
                 currentTimer->isValid = 0;
                 mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
@@ -321,7 +320,6 @@ void * timerFunction()  //<<----------------------------< togli il ciclo inifnit
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
             }
-            printf("\n");
         }
     }
 }
@@ -350,7 +348,7 @@ int getWheelPosition()
     int pos = (currentTimeSlot + offset)%timerSize;
 
     mtxUnlock(&currentTSMTX);
-    printf("timer will be set in position %d and the timer thread is in position %d\n\n", pos, currentTimeSlot);
+    //printf("timer will be set in position %d\n\n", pos);
     return(pos);
 }
 
@@ -367,10 +365,10 @@ void startTimer(int packetN, int posInWheel)
         (selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = timerWheel[posInWheel].nextTimer;
     }
     else
-        ((selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL);
+        (selectiveWnd[(packetN)%(windowSize)].packetTimer).nextTimer = NULL;
 
     (timerWheel[posInWheel]).nextTimer = &(selectiveWnd[(packetN)%(windowSize)].packetTimer);
-    printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
+    //printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
 }
 
 void initTimerWheel()
@@ -501,7 +499,6 @@ void closeFile(int fd)
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
 {
-
     mtxLock(mtx);
     if(pthread_cond_signal(condition) != 0)
     {
@@ -518,12 +515,13 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     }
 }
 
-void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd)
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command)
 {
     int isFinal = 0;
     datagram packet;
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     int ackreceived = 0;
+    int alreadyDone = 0;
 
     while(isFinal != -1)
     {
@@ -531,6 +529,15 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         {
             if(packet.opID == getOpID())
             {
+                if(packet.seqNum < firstPacket && alreadyDone == 0)
+                {
+                    rounds++;
+                    alreadyDone ++;
+                }
+                else if(packet.seqNum >= firstPacket && alreadyDone > 0)
+                {
+                    alreadyDone = 0;
+                }
                 isFinal = packet.isFinal;
                 //----------------------------------------------------------------
                 if (isFinal == 0) {
@@ -541,10 +548,11 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
                 }
                 //----------------------------------------------------------------
-
-                if (!ackreceived) {
-                    ackSentPacket(packet.ackSeqNum);
-                    ackreceived = 1;
+                if (command == 0) {
+                    if (!ackreceived) {
+                        ackSentPacket(packet.ackSeqNum);
+                        ackreceived = 1;
+                    }
                 }
 
                 details.remoteSeq = packet.seqNum;
@@ -552,8 +560,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 //printf("dico di ackare il pacchetto numero %d con isFinal %d\n", packet.seqNum, packet.isFinal);
                 memset(&packet, 0, sizeof(datagram));
             }
-            else
-                printf("non era una stupidata,globalOPID = %d, opID arrivato = %d\n", getOpID(), packet.opID);
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
@@ -578,20 +584,22 @@ int checkWindowSendBase()
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 {
     offset = seqnum-firstnum;
-    //printf("\nseqnum = %d, firstnum = %d, offset = %d\n", seqnum, firstnum, offset);
+    if(offset < 0)
+    {
+        offset = MAXSEQNUM + offset;
+    }
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
-        if ((lseek(file, offset * 512, SEEK_SET)) == -1)
-        {
+        if ((lseek(file, (offset * 512) + (rounds * MAXSEQNUM), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
     }
-
     if (write(file, content, len) == -1)
     {
         perror("error in writeOnFile");
     }
+
 }
 
 void tellSenderSendACK(int packetN, short int isFinal)
@@ -742,15 +750,14 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 
 void sendSignalTimer()
 {
-    printf("sto mandando il segnale al timer\n");
     mtxLock(&syncMTX);
     globalTimerStop = 1;
     mtxUnlock(&syncMTX);
-    if(pthread_cond_signal(&condTimerSleep) == -1)
+    if(pthread_cond_signal(&condTimerSleep) != 0)
     {
         perror("error in cond_signal timer");
     }
-    printf("mandato segnale al timer\n");
+    //printf("segnale mandato\n");
 }
 
 int getOpID()
