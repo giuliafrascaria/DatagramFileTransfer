@@ -36,6 +36,7 @@ typedef struct datagram_t
     int opID;
     int seqNum;
     int ackSeqNum;
+    ssize_t packetLen;
     short int isFinal;
     char content[512];
 } datagram;
@@ -177,6 +178,10 @@ int getSendBase();
 int getSeqNum();
 
 int getCurrentTimeSlot();
+
+int getRounds();
+
+void incrementRounds();
 
 //----------------------------------------------------------------------------------------------------------------------
 

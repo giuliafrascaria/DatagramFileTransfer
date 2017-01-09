@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 50000
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+  #define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -561,6 +561,7 @@ void sendCycle(int command)
 
     int finalSeq = -1;
     int isFinal = 0;
+    int alreadyDone = 0;
     ssize_t readByte;
 
     struct pipeMessage rtx;
@@ -574,8 +575,11 @@ void sendCycle(int command)
 //            mtxUnlock(&mtxPacketAndDetails);
 
 //            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
+
             while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > WINDOWSIZE-10)
             {
+                printf("la differenza è %d\n", getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE);
+                sleep(1);
                 if (checkPipe(&rtx, pipeFd[0]) != 0)
                 {
                     printf("ritrasmetto4\n");
@@ -586,6 +590,7 @@ void sendCycle(int command)
 //                sndBase = details.sendBase;
 //                mtxUnlock(&mtxPacketAndDetails);
             }
+
             if (checkPipe(&rtx, pipeFd[0]) == 0)
             {
                 memset(sndPacket.content, 0, 512);
@@ -594,34 +599,44 @@ void sendCycle(int command)
                 {
                     perror("error in file read");
                 }
-                if (readByte == finalLen)
-                {
-//                    finalSeq = seqnum;
-                    finalSeq = getSeqNum();
-                    isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
-                }
-                if(readByte < 512 && readByte != finalLen)
-                {
-                    printf("ho letto un po' di meno\n");
-                }
-                sndPacket.isFinal = (short) isFinal;
+//                if (readByte == finalLen)
+//                {
+//                    finalSeq = getSeqNum();
+//                    isFinal = 1;
+//                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+//                }
+//                if(readByte < 512 && readByte != finalLen)
+//                {
+//                    printf("ho letto un po' di meno\n");
+//                }
+                else if(readByte != 0) {
+                    sndPacket.packetLen = readByte;
+                    sndPacket.isFinal = (short) isFinal;
 
-                mtxLock(&mtxPacketAndDetails);
-                sndPacket.ackSeqNum = details.remoteSeq;
-                mtxUnlock(&mtxPacketAndDetails);
+                    mtxLock(&mtxPacketAndDetails);
+                    sndPacket.ackSeqNum = details.remoteSeq;
+                    mtxUnlock(&mtxPacketAndDetails);
 
-//                sndPacket.seqNum = seqnum;
-                sndPacket.seqNum = getSeqNum();
+                    sndPacket.seqNum = getSeqNum();
 
-                mtxLock(&syncMTX);
-                sndPacket.opID = globalOpID;
-                mtxUnlock(&syncMTX);
+                    mtxLock(&syncMTX);
+                    sndPacket.opID = globalOpID;
+                    mtxUnlock(&syncMTX);
 
-                //printf("ho inviato un pacchetto ackando %u\n", details.remoteSeq);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
+                    if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
+                        incrementRounds();
+                        alreadyDone++;
+                    } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
+                        alreadyDone = 0;
+                    }
+                    //printf("ho inviato un pacchetto\n");
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
 //                seqnum = details.mySeq;
-
+                }
+                else {
+                    isFinal = 1;
+                    finalSeq = getSeqNum() - 1;
+                }
             }
             else
             {

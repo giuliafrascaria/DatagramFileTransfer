@@ -10,10 +10,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 500000
+#define NANOSLEEP 50000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -498,7 +498,7 @@ void pushListener()
 
 void pushSender()
 {
-    int finalSeq = -100, isFinal = 0;
+    int finalSeq = -100, isFinal = 0, alreadyDone = 0;
     ssize_t readByte;
     datagram sndPacket;
     struct pipeMessage rtx;
@@ -530,44 +530,50 @@ void pushSender()
 
     while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))
     {
-        while(isFinal == 0)
-        {
-
-            while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > (WINDOWSIZE - 1))
-            {
-                if(checkPipe(&rtx, pipeFd[0]) != 0)
-                {
-                    //retransmitForPush(fdglob, &rtx);
+        while(isFinal == 0) {
+            while (getSeqNum() % WINDOWSIZE - getSendBase() % WINDOWSIZE > (WINDOWSIZE - 1)) {
+                if (checkPipe(&rtx, pipeFd[0]) != 0) {
                     printf("ritrasmetto7\n");
                     sndPacket = rebuildDatagram(fdglob, rtx, 1);
                     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
             }
-            if (checkPipe(&rtx, pipeFd[0]) == 0)
-            {
+            if (checkPipe(&rtx, pipeFd[0]) == 0) {
                 memset(sndPacket.content, 0, 512);
                 readByte = read(fdglob, sndPacket.content, 512);
-                if (readByte < 512 && readByte >= 0)
-                {
-                    finalSeq = getSeqNum();
+//                if (readByte < 512 && readByte >= 0)
+//                {
+//                    finalSeq = getSeqNum();
+//                    isFinal = 1;
+//                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d, numero di sequenza : %d)\n", (int) readByte, finalSeq);
+//                }
+                if (readByte < 0) {
+                    perror("error in read");
+                } else if (readByte != 0) {
+                    sndPacket.packetLen = readByte;
+
+                    putDataInPacketPush(&sndPacket, isFinal);
+
+                    if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
+                        incrementRounds();
+                        alreadyDone++;
+                    } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
+                        alreadyDone = 0;
+                    }
+
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
+                } else {
                     isFinal = 1;
-                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d, numero di sequenza : %d)\n", (int) readByte, finalSeq);
+                    finalSeq = getSeqNum() - 1;
                 }
 
-                putDataInPacketPush(&sndPacket, isFinal);
-
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
-
-            }
-            else
-            {
+            } else {
                 printf("ritrasmetto8\n");
                 sndPacket = rebuildDatagram(fdglob, rtx, 1);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 //retransmitForPush(fdglob, &rtx);
             }
         }
-
         if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
         {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
@@ -577,6 +583,7 @@ void pushSender()
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
+
     }
     printf("mi appresto a mandare il pacchetto finale\n");
     //mtxLock(&mtxPacketAndDetails);

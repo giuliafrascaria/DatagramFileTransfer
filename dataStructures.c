@@ -28,6 +28,7 @@ extern pthread_mutex_t mtxPacketAndDetails;
 
 volatile int currentTimeSlot = 0;
 volatile int rounds = 0;
+volatile int roundsSender = 0;
 
 pthread_mutex_t roundsMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
@@ -156,7 +157,8 @@ void sentPacket(int packetN, int retransmission)
     if(retransmission == 0)
     {
         mtxLock(&mtxPacketAndDetails);
-        details.mySeq = (packetN + 1) % MAXSEQNUM;
+//        details.mySeq = (packetN+1)%MAXSEQNUM;
+        details.mySeq = (details.mySeq+1)%MAXSEQNUM;
         mtxUnlock(&mtxPacketAndDetails);
     }
 }
@@ -275,6 +277,7 @@ void mtxUnlock(pthread_mutex_t * mtx)
 
 void * timerFunction()
 {
+
     printf("timer thread attivato\n\n");
     int i = 0;
 
@@ -303,6 +306,8 @@ void * timerFunction()
             perror("error in cond_wait timer");
         }
 
+        for(;;){}
+
         while(readGlobalTimerStop() == 1)
         {
 
@@ -315,7 +320,7 @@ void * timerFunction()
                 rtxN.seqNum = currentTimer->seqNum;
                 //rtxN.isFinal = 0;---------------------------------------gestire questo
 
-                printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
+                //printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid) {
@@ -331,7 +336,7 @@ void * timerFunction()
                 mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
-
+                printf("indirizzo successivo %p\n", currentTimer);
 
             }
             printf("clocktick\n");
@@ -567,14 +572,12 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     alreadyDone = 0;
                 }
                 isFinal = packet.isFinal;
+                //printf("isFinal == %d\n", isFinal);
                 //----------------------------------------------------------------
-                if (isFinal == 0) {
-                    writeOnFile(fd, packet.content, packet.seqNum, firstPacket, 512);
-                }
-                else if (isFinal == 1) {
-                    writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) finalLen);
-                    printf("ho scritto il pacchetto finale con valore finallen = %d\n", finalLen);
-                }
+
+
+                writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) packet.packetLen);
+                //printf("pacchetto scritto\n");
                 //----------------------------------------------------------------
                 if (command == 0) {
                     if (!ackreceived) {
@@ -669,7 +672,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             datagram packetRTX = rebuildDatagram(0 , *pm, command);
             sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto1\n");
+            printf("ritrasmetto1\n");
         }
     }
 }
@@ -683,8 +686,15 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
     if (fd != 0)
     {
         readByte = read(fd, sndPacket.content, 512);
+        int fileoffset = pm.seqNum - details.firstSeqNum;
+        if(fileoffset < 0)
+        {
+            fileoffset = MAXSEQNUM + fileoffset;
+        }
+
         mtxLock(&mtxPacketAndDetails);
-        if (lseek(fd, 512 * (pm.seqNum - details.firstSeqNum), SEEK_SET) == -1) {
+        if (lseek(fd, 512*(fileoffset) + (getRounds() * MAXSEQNUM) , SEEK_SET) == -1)
+        {
             perror("errore in lseek");
         }
         sndPacket.ackSeqNum = details.remoteSeq;
@@ -753,7 +763,7 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
             //datagram packetRTX = rebuildDatagram(*pm);
             sendDatagram(socketfd, servAddr, servLen, &packet, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto3\n");
+            printf("ritrasmetto il primo pacchetto\n");
         }
     }
 }
@@ -815,4 +825,19 @@ int getCurrentTimeSlot()
     cts = currentTimeSlot;
     mtxUnlock(&currentTSMTX);
     return cts;
+}
+
+void incrementRounds()
+{
+    mtxLock(&roundsMTX);
+    roundsSender++;
+    mtxUnlock(&roundsMTX);
+}
+
+int getRounds()
+{
+    mtxLock(&roundsMTX);
+    int r = roundsSender;
+    mtxUnlock(&roundsMTX);
+    return r;
 }
