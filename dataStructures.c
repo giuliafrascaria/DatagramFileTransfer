@@ -20,7 +20,7 @@ extern struct details details;
 extern int  timerSize, nanoSleep, windowSize;
 extern int pipeFd[2];
 extern int pipeSendACK[2];
-extern volatile int finalLen, globalTimerStop;
+extern volatile int globalTimerStop;
 extern datagram packet;
 extern int globalOpID;
 extern pthread_mutex_t syncMTX;

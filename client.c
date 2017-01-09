@@ -23,14 +23,14 @@ int pipeFd[2];
 int pipeSendACK[2];
 volatile int globalTimerStop = 0;
 volatile int globalOpID;
-volatile int fdList, finalLen;
+volatile int fdList;
 
 datagram packet;
 
 int fdglob;
 
 
-void retransmitForPush(int fd, struct pipeMessage * rtx);
+//void retransmitForPush(int fd, struct pipeMessage * rtx);
 void pushSender();
 void clientSendFunction();
 void * clientListenFunction();
@@ -388,16 +388,6 @@ void listPullListener(int fd, int command)
     datagram firstDatagram;
     while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
 
-//    printf("faccio un sscanf\n");
-
-    mtxLock(&syncMTX);
-    if(sscanf(firstDatagram.content, "%d", &finalLen) == EOF)
-    {
-        perror("error on scanf");
-    }
-    printf("ho ricevuto la lunghezza del pacchetto finale %d\n", finalLen);
-    mtxUnlock(&syncMTX);
-
     mtxLock(&mtxPacketAndDetails);
     details.remoteSeq = firstDatagram.seqNum;
     mtxUnlock(&mtxPacketAndDetails);
@@ -541,12 +531,6 @@ void pushSender()
             if (checkPipe(&rtx, pipeFd[0]) == 0) {
                 memset(sndPacket.content, 0, 512);
                 readByte = read(fdglob, sndPacket.content, 512);
-//                if (readByte < 512 && readByte >= 0)
-//                {
-//                    finalSeq = getSeqNum();
-//                    isFinal = 1;
-//                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d, numero di sequenza : %d)\n", (int) readByte, finalSeq);
-//                }
                 if (readByte < 0) {
                     perror("error in read");
                 } else if (readByte != 0) {
@@ -577,7 +561,6 @@ void pushSender()
         if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
         {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                //retransmitForPush(fdglob, &rtx);
                 printf("ritrasmetto9\n");
                 sndPacket = rebuildDatagram(fdglob, rtx, 1);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
@@ -586,44 +569,44 @@ void pushSender()
 
     }
     printf("mi appresto a mandare il pacchetto finale\n");
-    //mtxLock(&mtxPacketAndDetails);
+    mtxLock(&mtxPacketAndDetails);
     memset(sndPacket.content, 0, 512);
-    //mtxUnlock(&mtxPacketAndDetails);
+    mtxUnlock(&mtxPacketAndDetails);
     putDataInPacketPush(&sndPacket, -1);
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 
-void retransmitForPush(int fd, struct pipeMessage * rtx)
-{
-    printf("ritrasmetto10\n");
-    datagram sndPacket;
-
-    mtxLock(&mtxPacketAndDetails);
-    if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1)
-    {
-        perror("errore in lseek");
-    }
-    mtxUnlock(&mtxPacketAndDetails);
-
-    if(read(fd, sndPacket.content, 512)==-1)
-    {
-        perror("error in read");
-    }
-
-    sndPacket.isFinal = rtx->isFinal;
-    sndPacket.seqNum = rtx->seqNum;
-    sndPacket.command = 1;
-    mtxLock(&syncMTX);
-    sndPacket.opID = globalOpID;
-    mtxUnlock(&syncMTX);
-
-    mtxLock(&mtxPacketAndDetails);
-    sndPacket.ackSeqNum = details.remoteSeq;
-    mtxUnlock(&mtxPacketAndDetails);
-
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
-}
+//void retransmitForPush(int fd, struct pipeMessage * rtx)
+//{
+//    printf("ritrasmetto10\n");
+//    datagram sndPacket;
+//
+//    mtxLock(&mtxPacketAndDetails);
+//    if(lseek(fd, 512*(rtx->seqNum - details.firstSeqNum), SEEK_SET) == -1)
+//    {
+//        perror("errore in lseek");
+//    }
+//    mtxUnlock(&mtxPacketAndDetails);
+//
+//    if(read(fd, sndPacket.content, 512)==-1)
+//    {
+//        perror("error in read");
+//    }
+//
+//    sndPacket.isFinal = rtx->isFinal;
+//    sndPacket.seqNum = rtx->seqNum;
+//    sndPacket.command = 1;
+//    mtxLock(&syncMTX);
+//    sndPacket.opID = globalOpID;
+//    mtxUnlock(&syncMTX);
+//
+//    mtxLock(&mtxPacketAndDetails);
+//    sndPacket.ackSeqNum = details.remoteSeq;
+//    mtxUnlock(&mtxPacketAndDetails);
+//
+//    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
+//}
 
 void initProcessDetails()
 {

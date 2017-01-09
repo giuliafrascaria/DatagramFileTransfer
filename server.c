@@ -21,7 +21,7 @@ int pipeFd[2];
 int pipeSendACK[2];
 datagram packet;
 
-volatile int finalLen, globalOpID, globalTimerStop = 0;
+volatile int globalOpID, globalTimerStop = 0;
 
 
 struct details details;
@@ -48,8 +48,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
 int ls();
-int receiveFirstDatagram(char * content);
-
+int receiveFirstDatagram();
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        <<-------------<   FUNZIONI
 
@@ -200,7 +199,7 @@ void listenCycle()
                 }
                 else if (packet.command == 1)
                 {
-                    int fd = receiveFirstDatagram(packet.content);
+                    int fd = receiveFirstDatagram();
                     tellSenderSendACK(packet.seqNum, packet.isFinal);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd, 1);
@@ -459,7 +458,7 @@ int ls()
     return fd;
 }
 
-int receiveFirstDatagram(char * content)
+int receiveFirstDatagram()
 {
     printf("sono in receiveFirstDatagram\n");
     int fd;
@@ -469,13 +468,6 @@ int receiveFirstDatagram(char * content)
     {
         perror("error in malloc");
     }
-
-    mtxLock(&syncMTX);
-    if (sscanf(content, "%s %d", s, &finalLen) == EOF)
-    {
-        perror("1: error in reading words from standard input, first sscanf push");
-    }
-    mtxUnlock(&syncMTX);
 
     //GIULIA
     fileName = malloc(512);
@@ -537,11 +529,7 @@ void sendCycle(int command)
         perror("error in sprintf");
     }
 
-//    mtxLock(&mtxPacketAndDetails);
-//    sndPacket.seqNum = details.mySeq;
     sndPacket.seqNum = getSeqNum();
-//    mtxUnlock(&mtxPacketAndDetails);
-
     sndPacket.command = 1;
     sndPacket.isFinal = 0;
     printf("mando il primo pacchetto con la dimensione del file\n");
@@ -553,11 +541,7 @@ void sendCycle(int command)
 
 //    int seqnum = details.mySeq;
 
-//    mtxLock(&mtxPacketAndDetails);
-//    details.firstSeqNum = seqnum;
     details.firstSeqNum = getSeqNum();
-//    int sndBase = details.sendBase;
-//    mtxUnlock(&mtxPacketAndDetails);
 
     int finalSeq = -1;
     int isFinal = 0;
@@ -565,16 +549,10 @@ void sendCycle(int command)
     ssize_t readByte;
 
     struct pipeMessage rtx;
-    //while(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
     while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
     {
         while(isFinal == 0)
         {
-//            mtxLock(&mtxPacketAndDetails);
-//            sndBase = details.sendBase;
-//            mtxUnlock(&mtxPacketAndDetails);
-
-//            while(seqnum%WINDOWSIZE - sndBase%WINDOWSIZE > 256)
 
             while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > WINDOWSIZE-10)
             {
@@ -586,9 +564,6 @@ void sendCycle(int command)
                     sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 }
-//                mtxLock(&mtxPacketAndDetails);
-//                sndBase = details.sendBase;
-//                mtxUnlock(&mtxPacketAndDetails);
             }
 
             if (checkPipe(&rtx, pipeFd[0]) == 0)
@@ -599,16 +574,7 @@ void sendCycle(int command)
                 {
                     perror("error in file read");
                 }
-//                if (readByte == finalLen)
-//                {
-//                    finalSeq = getSeqNum();
-//                    isFinal = 1;
-//                    printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
-//                }
-//                if(readByte < 512 && readByte != finalLen)
-//                {
-//                    printf("ho letto un po' di meno\n");
-//                }
+
                 else if(readByte != 0) {
                     sndPacket.packetLen = readByte;
                     sndPacket.isFinal = (short) isFinal;
@@ -646,12 +612,6 @@ void sendCycle(int command)
             }
         }
 
-//        mtxLock(&mtxPacketAndDetails);
-//        sndBase = details.sendBase;
-//        //printf("sndbase = %d\n", details.sendBase);
-//        mtxUnlock(&mtxPacketAndDetails);
-
-//        if(sndBase%WINDOWSIZE != finalSeq%WINDOWSIZE)
         if(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
