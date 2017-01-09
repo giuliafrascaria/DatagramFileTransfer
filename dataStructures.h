@@ -150,9 +150,9 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 
 void tellSenderSendACK(int packetN, short int isFinal);
 
-datagram rebuildDatagram(int fd, struct pipeMessage pm);
+datagram rebuildDatagram(int fd, struct pipeMessage pm, int command);
 
-void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
+void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, int command);
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command);
 

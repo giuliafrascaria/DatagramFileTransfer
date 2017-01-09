@@ -8,7 +8,7 @@
 //#include <sys/time.h>
 #include "dataStructures.h"
 
-#define WINDOWSIZE 256
+#define WINDOWSIZE 2048
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
@@ -99,7 +99,7 @@ void clientSendFunction()
         {
             sendDatagram(details.sockfd, &details.addr, details.Size, &packet, 0);
             printf("pacchetto inviato \n\n");
-            ACKandRTXcycle(details.sockfd, &details.addr, details.Size);
+            ACKandRTXcycle(details.sockfd, &details.addr, details.Size, packet.command);
         }
         else
         {
@@ -538,8 +538,8 @@ void pushSender()
                 if(checkPipe(&rtx, pipeFd[0]) != 0)
                 {
                     //retransmitForPush(fdglob, &rtx);
-                    printf("ritrasmetto\n");
-                    sndPacket = rebuildDatagram(fdglob, rtx);
+                    printf("ritrasmetto7\n");
+                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
                     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
             }
@@ -561,8 +561,8 @@ void pushSender()
             }
             else
             {
-                printf("ritrasmetto\n");
-                sndPacket = rebuildDatagram(fdglob, rtx);
+                printf("ritrasmetto8\n");
+                sndPacket = rebuildDatagram(fdglob, rtx, 1);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 //retransmitForPush(fdglob, &rtx);
             }
@@ -572,8 +572,8 @@ void pushSender()
         {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
                 //retransmitForPush(fdglob, &rtx);
-                printf("ritrasmetto\n");
-                sndPacket = rebuildDatagram(fdglob, rtx);
+                printf("ritrasmetto9\n");
+                sndPacket = rebuildDatagram(fdglob, rtx, 1);
                 sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
@@ -589,7 +589,7 @@ void pushSender()
 
 void retransmitForPush(int fd, struct pipeMessage * rtx)
 {
-    printf("ritrasmetto\n");
+    printf("ritrasmetto10\n");
     datagram sndPacket;
 
     mtxLock(&mtxPacketAndDetails);

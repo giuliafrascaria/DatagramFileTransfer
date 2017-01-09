@@ -7,7 +7,7 @@
 #include <dirent.h>
 #include "server.h"
 
-#define WINDOWSIZE 256
+#define WINDOWSIZE 2048
 #define TIMERSIZE 2048
 #define NANOSLEEP 500000
 
@@ -117,7 +117,7 @@ void * sendFunction()
         }
         else if(packet.command == 1){
             printf("è una push\n");
-            ACKandRTXcycle(details.sockfd2, &details.addr2, details.Size2);
+            ACKandRTXcycle(details.sockfd2, &details.addr2, details.Size2, 1);
         }
     }
 
@@ -549,7 +549,7 @@ void sendCycle(int command)
 
 
     waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
-    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, details.mySeq);
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
 
 //    int seqnum = details.mySeq;
 
@@ -578,8 +578,8 @@ void sendCycle(int command)
             {
                 if (checkPipe(&rtx, pipeFd[0]) != 0)
                 {
-                    printf("ritrasmetto\n");
-                    sndPacket = rebuildDatagram(fd, rtx);
+                    printf("ritrasmetto4\n");
+                    sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 }
 //                mtxLock(&mtxPacketAndDetails);
@@ -590,12 +590,20 @@ void sendCycle(int command)
             {
                 memset(sndPacket.content, 0, 512);
                 readByte = read(fd, sndPacket.content, 512);
+                if(readByte == -1)
+                {
+                    perror("error in file read");
+                }
                 if (readByte == finalLen)
                 {
 //                    finalSeq = seqnum;
                     finalSeq = getSeqNum();
                     isFinal = 1;
                     printf("il pacchetto è finale (grandezza ultimo pacchetto : %d)\n", (int) readByte);
+                }
+                if(readByte < 512 && readByte != finalLen)
+                {
+                    printf("ho letto un po' di meno\n");
                 }
                 sndPacket.isFinal = (short) isFinal;
 
@@ -618,7 +626,7 @@ void sendCycle(int command)
             else
             {
                 //ritrasmetti
-                sndPacket = rebuildDatagram(fd, rtx);
+                sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             }
         }
@@ -633,8 +641,8 @@ void sendCycle(int command)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
-                printf("ritrasmetto\n");
-                sndPacket = rebuildDatagram(fd, rtx);
+                printf("ritrasmetto5\n");
+                sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             }
         }

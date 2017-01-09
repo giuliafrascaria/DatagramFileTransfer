@@ -9,8 +9,8 @@
 #include <fcntl.h>
 #include "dataStructures.h"
 
-#define MAXSEQNUM 8192
-#define WINDOWSIZE 256
+#define MAXSEQNUM 32768
+#define WINDOWSIZE 2048
 #define TIMERSIZE 2048
 
 struct selectCell selectiveWnd[WINDOWSIZE];
@@ -190,7 +190,7 @@ void ackSentPacket(int ackN)
     }
     else {
         printf("mi hai ackato qualcosa che non ho mai inviato, %d\n", ackN);
-        printWindow();
+        //printWindow();
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
     //printf("esco da acksentpacket\n");
@@ -315,7 +315,7 @@ void * timerFunction()
                 rtxN.seqNum = currentTimer->seqNum;
                 //rtxN.isFinal = 0;---------------------------------------gestire questo
 
-                //printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
+                printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid) {
@@ -635,7 +635,7 @@ void tellSenderSendACK(int packetN, short int isFinal)
     }
 }
 
-void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
+void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, int command)
 {
     int finish = 0;
     struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
@@ -666,47 +666,46 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
         }
         if (checkPipe(pm, pipeFd[0]) == 1)
         {
-            //datagram * packetRTX = rebuildDatagram(*pm);
-            //sendDatagram(socketfd, servAddr, servLen, &packet);
-            //memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto\n");
+            datagram packetRTX = rebuildDatagram(0 , *pm, command);
+            sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
+            memset(pm, 0, sizeof(struct pipeMessage));
+            printf("\n\nritrasmetto1\n");
         }
     }
 }
 
-datagram rebuildDatagram(int fd, struct pipeMessage pm)
-{
+datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
     ssize_t readByte;
     datagram sndPacket;
-    readByte = read(fd, sndPacket.content, 512);
 
-    mtxLock(&mtxPacketAndDetails);
-    if(lseek(fd, 512*(pm.seqNum - details.firstSeqNum), SEEK_SET) == -1)
+    sndPacket.command = command;
+
+    if (fd != 0)
     {
-        perror("errore in lseek");
-    }
-    sndPacket.ackSeqNum = details.remoteSeq;
-    mtxUnlock(&mtxPacketAndDetails);
-    if( readByte == -1)
-    {
-        perror("error in read");
-    }
-    if(readByte == 0)
-    {
-        sndPacket.isFinal = -1;
-    }
-    if(readByte < 512 && readByte > 0)
-    {
-        sndPacket.isFinal = 1;
-    }
-    if(readByte == 512)
-    {
-        sndPacket.isFinal = 0;
+        readByte = read(fd, sndPacket.content, 512);
+        mtxLock(&mtxPacketAndDetails);
+        if (lseek(fd, 512 * (pm.seqNum - details.firstSeqNum), SEEK_SET) == -1) {
+            perror("errore in lseek");
+        }
+        sndPacket.ackSeqNum = details.remoteSeq;
+        mtxUnlock(&mtxPacketAndDetails);
+        if (readByte == -1) {
+            perror("error in read");
+        }
+        if (readByte == 0) {
+            sndPacket.isFinal = -1;
+        }
+        if (readByte < 512 && readByte > 0) {
+            sndPacket.isFinal = 1;
+        }
+        if (readByte == 512) {
+            sndPacket.isFinal = 0;
+        }
     }
 
 
     sndPacket.seqNum = pm.seqNum;
-    printf("ritrasmetto %d\n", pm.seqNum);
+    printf("ritrasmetto2 %d\n", pm.seqNum);
     sndPacket.opID = getOpID();
 
     return sndPacket;
@@ -754,7 +753,7 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
             //datagram packetRTX = rebuildDatagram(*pm);
             sendDatagram(socketfd, servAddr, servLen, &packet, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto\n");
+            printf("\n\nritrasmetto3\n");
         }
     }
 }
