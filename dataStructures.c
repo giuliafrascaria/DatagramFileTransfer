@@ -4,27 +4,29 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "dataStructures.h"
+#include "externvars.h"
 
-#define MAXSEQNUM 32768
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
 
-extern struct details details;
-extern int  timerSize, nanoSleep, windowSize;
-extern int pipeFd[2];
-extern int pipeSendACK[2];
-extern volatile int globalTimerStop;
-extern datagram packet;
-extern int globalOpID;
-extern pthread_mutex_t syncMTX;
-extern pthread_mutex_t mtxPacketAndDetails;
+
+struct details details;
+int timerSize = TIMERSIZE;
+int nanoSleep = NANOSLEEP;
+int windowSize = WINDOWSIZE;
+int pipeFd[2];
+int pipeSendACK[2];
+datagram packet;
+
+volatile int finalLen, globalTimerStop = 0;
+
+int globalOpID;
+pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
+
 
 volatile int currentTimeSlot = 0;
 volatile int rounds = 0;
@@ -145,9 +147,11 @@ void sentPacket(int packetN, int retransmission)
 {
     mtxLock(&((selectiveWnd[packetN % windowSize]).cellMtx));
 
+    printf("preso il lock\n");
+
     (selectiveWnd[packetN % windowSize]).value = 1;
     ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
-    //printf("updated selective repeat\n");
+    printf("updated selective repeat\n");
 
     int pos = getWheelPosition();
     startTimer(packetN, pos);
@@ -218,17 +222,25 @@ void printWindow()
 void slideWindow()
 {
 
-    while(selectiveWnd[getSendBase()%windowSize].value == 2)
+    int end = 0;
+    while(!end)
     {
         mtxLock(&((selectiveWnd[getSendBase()% windowSize]).cellMtx));
-        selectiveWnd[getSendBase()%windowSize].value = 0;
-        mtxUnlock(&((selectiveWnd[getSendBase() % windowSize]).cellMtx));
+        while(selectiveWnd[getSendBase()%windowSize].value == 2)
+        {
 
-        mtxLock(&mtxPacketAndDetails);
-        details.sendBase = details.sendBase + 1;
-        mtxUnlock(&mtxPacketAndDetails);
-        //printf("mando avanti sendBase, %d\n", details.sendBase);
+            selectiveWnd[getSendBase()%windowSize].value = 0;
+            mtxUnlock(&((selectiveWnd[getSendBase() % windowSize]).cellMtx));
+
+            mtxLock(&mtxPacketAndDetails);
+            details.sendBase = details.sendBase + 1;
+            mtxUnlock(&mtxPacketAndDetails);
+            //printf("mando avanti sendBase, %d\n", details.sendBase);
+        }
+        end = 1;
+        mtxUnlock(&((selectiveWnd[getSendBase() % windowSize]).cellMtx));
     }
+
     //printWindow();
 }
 
@@ -315,6 +327,9 @@ void * timerFunction()
             currentTimer = timerWheel[getCurrentTimeSlot()].nextTimer;
             mtxUnlock(&headtimerMTX);
 
+            printf("clocktick\n");
+            clockTick();
+
             while (currentTimer != NULL)
             {
                 rtxN.seqNum = currentTimer->seqNum;
@@ -339,8 +354,7 @@ void * timerFunction()
                 printf("indirizzo successivo %p\n", currentTimer);
 
             }
-            printf("clocktick\n");
-            clockTick();
+
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
             }
@@ -432,12 +446,17 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
 
 void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx)
 {
+    printf("scrivo in selective %d\n", sndPacket->seqNum);
     sentPacket(sndPacket->seqNum, rtx);
-
+    printf("fatto\n");
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
         perror("datagram send error");
     }
-    //printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
+    if(usleep(5) != 0)
+    {
+        perror("usleep error");
+    }
+    printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
@@ -670,7 +689,9 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
         if (checkPipe(pm, pipeFd[0]) == 1)
         {
             datagram packetRTX = rebuildDatagram(0 , *pm, command);
+            printf("datagramma ricostruito\n");
             sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
+            printf("ritrasmissione effettuata\n");
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("ritrasmetto1\n");
         }
@@ -711,6 +732,10 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
         if (readByte == 512) {
             sndPacket.isFinal = 0;
         }
+    }
+    else
+    {
+        sndPacket.isFinal = 1;
     }
 
 

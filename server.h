@@ -5,7 +5,7 @@
 #ifndef DFT_SERVER_H
 #define DFT_SERVER_H
 
-#include "dataStructures.h"
+#include "externvars.h"
 
 void listenFunction(int socketfd, struct details * details, handshake * message);
 void * sendFunction();

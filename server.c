@@ -7,29 +7,16 @@
 #include <dirent.h>
 #include "server.h"
 
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
-#define NANOSLEEP 50000
-
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-  #define LSDIR "/home/dandi/Downloads/"
-
-int timerSize = TIMERSIZE;
-int nanoSleep = NANOSLEEP;
-int windowSize = WINDOWSIZE;
-int pipeFd[2];
-int pipeSendACK[2];
-datagram packet;
-
-volatile int globalOpID, globalTimerStop = 0;
 
 
-struct details details;
+#define LSDIR "/home/giogge/Documenti/experiments/"
+//#define LSDIR "/home/dandi/Downloads/"
+
 
 pthread_t timerThread;
 pthread_t senderThread;
 
-pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
+
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
@@ -37,7 +24,7 @@ pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
-pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
+
 
 
 void sendCycle(int command);

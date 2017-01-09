@@ -10,6 +10,14 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <stdio.h>
+#include <pthread.h>
+
+
+
+#define WINDOWSIZE 2048
+#define TIMERSIZE 2048
+#define NANOSLEEP 50000
+#define MAXSEQNUM 32768
 
 //------------------------------------------------------------------------------------------------------STRUTTURE DATI
 
@@ -77,6 +85,7 @@ struct pipeMessage
 };
 
 //----------------------------------------------------------------------------------------------------------------TIMER
+
 
 void * timerFunction();
 void initTimerWheel();

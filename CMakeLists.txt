@@ -11,14 +11,14 @@ set(SOURCE_FILES2
         client.c
         dataStructures.c
         dataStructures.h
-)
+        externvars.h)
 
 set(SOURCE_FILES3
         mainServer.c
         server.c
         dataStructures.c
         server.c
-        dataStructures.h server.h)
+        dataStructures.h server.h externvars.h)
 
 
 
