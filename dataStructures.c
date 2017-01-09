@@ -26,8 +26,10 @@ extern int globalOpID;
 extern pthread_mutex_t syncMTX;
 extern pthread_mutex_t mtxPacketAndDetails;
 
-volatile int currentTimeSlot, rounds = 0;
+volatile int currentTimeSlot = 0;
+volatile int rounds = 0;
 
+pthread_mutex_t roundsMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t headtimerMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
@@ -122,12 +124,16 @@ void initWindow()
     int i;
     for(i = 0; i < windowSize; i++)
     {
-        selectiveWnd[i].value = 0;
-        (selectiveWnd[i].packetTimer).nextTimer = NULL;
+
         if(pthread_mutex_init(&(selectiveWnd[i].cellMtx), NULL) != 0)
         {
             perror("mutex init error");
         }
+
+        mtxLock(&(selectiveWnd[i].cellMtx));
+        selectiveWnd[i].value = 0;
+        (selectiveWnd[i].packetTimer).nextTimer = NULL;
+        mtxUnlock(&(selectiveWnd[i].cellMtx));
     }
 
     printf("inizializzo ruota della selective\n");
@@ -136,7 +142,7 @@ void initWindow()
 
 void sentPacket(int packetN, int retransmission)
 {
-    mtxLock(&(selectiveWnd[packetN % windowSize]).cellMtx);
+    mtxLock(&((selectiveWnd[packetN % windowSize]).cellMtx));
 
     (selectiveWnd[packetN % windowSize]).value = 1;
     ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
@@ -145,12 +151,12 @@ void sentPacket(int packetN, int retransmission)
     int pos = getWheelPosition();
     startTimer(packetN, pos);
 
-    mtxUnlock(&(selectiveWnd[packetN % windowSize]).cellMtx);
+    mtxUnlock(&((selectiveWnd[packetN % windowSize]).cellMtx));
 
     if(retransmission == 0)
     {
         mtxLock(&mtxPacketAndDetails);
-        details.mySeq = (packetN+1)%MAXSEQNUM;
+        details.mySeq = (packetN + 1) % MAXSEQNUM;
         mtxUnlock(&mtxPacketAndDetails);
     }
 }
@@ -159,7 +165,7 @@ void ackSentPacket(int ackN)
 {
     //printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n", ackN);
 
-    mtxLock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+    mtxLock(&((selectiveWnd[ackN % windowSize]).cellMtx));
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
@@ -179,13 +185,13 @@ void ackSentPacket(int ackN)
         //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
 
         //-------------------------------------------------------------------------------------------------------------------------------
-        mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+        mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
         slideWindow();
     }
     else {
         printf("mi hai ackato qualcosa che non ho mai inviato, %d\n", ackN);
         printWindow();
-        mtxUnlock(&(selectiveWnd[ackN % windowSize]).cellMtx);
+        mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
     //printf("esco da acksentpacket\n");
 }
@@ -212,9 +218,9 @@ void slideWindow()
 
     while(selectiveWnd[getSendBase()%windowSize].value == 2)
     {
-        mtxLock(&(selectiveWnd[getSendBase()% windowSize]).cellMtx);
+        mtxLock(&((selectiveWnd[getSendBase()% windowSize]).cellMtx));
         selectiveWnd[getSendBase()%windowSize].value = 0;
-        mtxUnlock(&(selectiveWnd[getSendBase() % windowSize]).cellMtx);
+        mtxUnlock(&((selectiveWnd[getSendBase() % windowSize]).cellMtx));
 
         mtxLock(&mtxPacketAndDetails);
         details.sendBase = details.sendBase + 1;
@@ -368,17 +374,17 @@ void startTimer(int packetN, int posInWheel)
 {
     memset(&((selectiveWnd[(packetN)%(windowSize)]).packetTimer), 0, sizeof(struct timer));
 
-    ((selectiveWnd[(packetN)%(windowSize)]).packetTimer).seqNum = packetN;
-    ((selectiveWnd[(packetN)%(windowSize)]).packetTimer).isValid = 1;
-    ((selectiveWnd[(packetN)%(windowSize)]).packetTimer).posInWheel = posInWheel;
+    ((selectiveWnd[packetN%windowSize]).packetTimer).seqNum = packetN;
+    ((selectiveWnd[packetN%windowSize]).packetTimer).isValid = 1;
+    ((selectiveWnd[packetN%windowSize]).packetTimer).posInWheel = posInWheel;
 
     mtxLock(&headtimerMTX);
-    if(timerWheel[posInWheel].nextTimer != NULL)
+    if((timerWheel[posInWheel]).nextTimer != NULL)
     {
-        ((selectiveWnd[(packetN)%(windowSize)]).packetTimer).nextTimer = timerWheel[posInWheel].nextTimer;
+        ((selectiveWnd[packetN%windowSize]).packetTimer).nextTimer = (timerWheel[posInWheel]).nextTimer;
     }
     else
-        ((selectiveWnd[(packetN)%(windowSize)]).packetTimer).nextTimer = NULL;
+        ((selectiveWnd[packetN%windowSize]).packetTimer).nextTimer = NULL;
 
 
     (timerWheel[posInWheel]).nextTimer = &((selectiveWnd[(packetN)%(windowSize)]).packetTimer);
@@ -535,9 +541,11 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
 {
     int isFinal = 0;
     datagram packet;
+
     mtxLock(&mtxPacketAndDetails);
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     mtxUnlock(&mtxPacketAndDetails);
+
     int ackreceived = 0;
     int alreadyDone = 0;
 
@@ -549,7 +557,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
             {
                 if(packet.seqNum < firstPacket && alreadyDone == 0)
                 {
+                    mtxLock(&roundsMTX);
                     rounds++;
+                    mtxUnlock(&roundsMTX);
                     alreadyDone ++;
                 }
                 else if(packet.seqNum >= firstPacket && alreadyDone > 0)
@@ -597,9 +607,11 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
+        mtxLock(&roundsMTX);
         if ((lseek(file, (fileoffset * 512) + (rounds * MAXSEQNUM), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
+        mtxUnlock(&roundsMTX);
     }
     if (write(file, content, len) == -1)
     {
