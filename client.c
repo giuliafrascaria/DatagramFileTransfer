@@ -6,15 +6,27 @@
 #include <pthread.h>
 #include <sys/sendfile.h>
 //#include <sys/time.h>
-#include "externvars.h"
+#include "dataStructures.h"
+
+#define WINDOWSIZE 2048
+#define TIMERSIZE 2048
+#define NANOSLEEP 50000
+
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
-
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
-
-
+int timerSize = TIMERSIZE;
+int nanoSleep = NANOSLEEP;
+int windowSize = WINDOWSIZE;
+int pipeFd[2];
+int pipeSendACK[2];
+volatile int globalTimerStop = 0;
+volatile int globalOpID;
 volatile int fdList;
+
+datagram packet;
+
 int fdglob;
 
 
@@ -42,14 +54,14 @@ char * stringParser(char * string);
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+struct details details;
 pthread_t listenThread, timerThread;
 
 
-
+pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
-
+pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
@@ -376,8 +388,6 @@ void listPullListener(int fd, int command)
     datagram firstDatagram;
     while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
 
-
-    //togliere
     mtxLock(&mtxPacketAndDetails);
     details.remoteSeq = firstDatagram.seqNum;
     mtxUnlock(&mtxPacketAndDetails);

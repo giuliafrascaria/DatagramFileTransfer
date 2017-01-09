@@ -7,16 +7,29 @@
 #include <dirent.h>
 #include "server.h"
 
+#define WINDOWSIZE 2048
+#define TIMERSIZE 2048
+#define NANOSLEEP 50000
+
+//#define LSDIR "/home/giogge/Documenti/experiments/"
+  #define LSDIR "/home/dandi/Downloads/"
+
+int timerSize = TIMERSIZE;
+int nanoSleep = NANOSLEEP;
+int windowSize = WINDOWSIZE;
+int pipeFd[2];
+int pipeSendACK[2];
+datagram packet;
+
+volatile int globalOpID, globalTimerStop = 0;
 
 
-#define LSDIR "/home/giogge/Documenti/experiments/"
-//#define LSDIR "/home/dandi/Downloads/"
-
+struct details details;
 
 pthread_t timerThread;
 pthread_t senderThread;
 
-
+pthread_mutex_t syncMTX = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t condMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
@@ -24,7 +37,7 @@ pthread_cond_t secondConnectionCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t condMTX2 = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 
-
+pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
 
 
 void sendCycle(int command);
@@ -35,7 +48,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
 int ls();
-int receiveFirstDatagram();
+int receiveFirstDatagram(char * content);
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        <<-------------<   FUNZIONI
 
@@ -186,7 +199,7 @@ void listenCycle()
                 }
                 else if (packet.command == 1)
                 {
-                    int fd = receiveFirstDatagram();
+                    int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, packet.isFinal);
                     printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd, 1);
@@ -445,7 +458,7 @@ int ls()
     return fd;
 }
 
-int receiveFirstDatagram()
+int receiveFirstDatagram(char * content)
 {
     printf("sono in receiveFirstDatagram\n");
     int fd;
@@ -456,6 +469,12 @@ int receiveFirstDatagram()
         perror("error in malloc");
     }
 
+        mtxLock(&syncMTX);
+    if (sscanf(content, "%s", s) == EOF)
+    {
+        perror("1: error in reading words from standard input, first sscanf push");
+    }
+    mtxUnlock(&syncMTX);
     //GIULIA
     fileName = malloc(512);
     if(fileName == NULL)
