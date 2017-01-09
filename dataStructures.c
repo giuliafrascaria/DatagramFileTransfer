@@ -7,9 +7,9 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <values.h>
 #include "dataStructures.h"
 
-#define MAXSEQNUM 32768
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
 
@@ -119,18 +119,18 @@ int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int so
 
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
-void initWindow()
+void initWindow(int times)
 {
     memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell));
     int i;
     for(i = 0; i < windowSize; i++)
     {
-
-        if(pthread_mutex_init(&(selectiveWnd[i].cellMtx), NULL) != 0)
+        if(times == 0)
         {
-            perror("mutex init error");
+            if (pthread_mutex_init(&(selectiveWnd[i].cellMtx), NULL) != 0) {
+                perror("mutex init error");
+            }
         }
-
         mtxLock(&(selectiveWnd[i].cellMtx));
         selectiveWnd[i].value = 0;
         (selectiveWnd[i].packetTimer).nextTimer = NULL;
@@ -138,12 +138,13 @@ void initWindow()
     }
 
     printf("inizializzo ruota della selective\n");
-
 }
 
 void sentPacket(int packetN, int retransmission)
 {
+    printf("prendo il lock\n");
     mtxLock(&((selectiveWnd[packetN % windowSize]).cellMtx));
+    printf("lascio il lock\n");
 
     (selectiveWnd[packetN % windowSize]).value = 1;
     ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
@@ -157,45 +158,30 @@ void sentPacket(int packetN, int retransmission)
     if(retransmission == 0)
     {
         mtxLock(&mtxPacketAndDetails);
-//        details.mySeq = (packetN+1)%MAXSEQNUM;
-        details.mySeq = (details.mySeq+1)%MAXSEQNUM;
+//        details.mySeq = (packetN+1)%MAXINT;
+        details.mySeq = (details.mySeq+1)%MAXINT;
         mtxUnlock(&mtxPacketAndDetails);
     }
 }
 
 void ackSentPacket(int ackN)
 {
-    //printf("aggiorno selective repeat perchè ho ricevuto ack per = %d\n", ackN);
-
     mtxLock(&((selectiveWnd[ackN % windowSize]).cellMtx));
 
     if ((selectiveWnd[ackN % windowSize]).value != 0 && (selectiveWnd[ackN % windowSize]).value != 2)
     {
-        //printf("aggiorno la selective repeat\n");
         ((selectiveWnd)[ackN % windowSize]).value = 2;
-
-        //--------------------------------------------------------------------------------andrà protetto con un mutex--------------------
-
-        //non ritrasmettere se il thread timer sta troppo vicino
-        if(getWheelPosition() == (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel)
+        if(getWheelPosition() != (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel)
         {
-            //non fermo il timer
+            (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
         }
-        else
-             (((selectiveWnd)[ackN % windowSize]).packetTimer).isValid = 0;
-        //printf("stoppato il timer in posizione %d\n", (((selectiveWnd)[ackN % windowSize]).packetTimer).posInWheel);
-        //printf("timer all'indirizzo %p\n", &(((selectiveWnd)[ackN % windowSize]).packetTimer));
-
-        //-------------------------------------------------------------------------------------------------------------------------------
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
         slideWindow();
     }
     else {
         printf("mi hai ackato qualcosa che non ho mai inviato, %d\n", ackN);
-        //printWindow();
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
-    //printf("esco da acksentpacket\n");
 }
 
 void printWindow()
@@ -266,7 +252,7 @@ void initPipe(int pipefd[2])
 
 void mtxLock(pthread_mutex_t * mtx)
 {
-    if(pthread_mutex_lock(mtx) == -1)
+    if(pthread_mutex_lock(mtx) != 0)
     {
         perror("error on mutex lock");
     }
@@ -274,7 +260,7 @@ void mtxLock(pthread_mutex_t * mtx)
 
 void mtxUnlock(pthread_mutex_t * mtx)
 {
-    if(pthread_mutex_unlock(mtx) == -1)
+    if(pthread_mutex_unlock(mtx) != 0)
     {
         perror("error on mutex unlock");
     }
@@ -293,7 +279,6 @@ void * timerFunction()
     struct pipeMessage rtxN;
     for(;;)
     {
-//        for(;;)
 
         initTimerWheel();
         mtxLock(&currentTSMTX);
@@ -313,6 +298,8 @@ void * timerFunction()
             perror("error in cond_wait timer");
         }
 
+//        for(;;){}
+
         while(readGlobalTimerStop() == 1)
         {
 
@@ -322,10 +309,9 @@ void * timerFunction()
 
             while (currentTimer != NULL)
             {
+                printf("ora vado in SIGSEGV all'indirizzo %p\n", currentTimer);
                 rtxN.seqNum = currentTimer->seqNum;
-                //rtxN.isFinal = 0;---------------------------------------gestire questo
 
-                //printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid) {
@@ -337,14 +323,11 @@ void * timerFunction()
                 currentTimer->isValid = 0;
                 examinedtimer = currentTimer;
                 currentTimer = examinedtimer->nextTimer;
-                examinedtimer = NULL;
-                mtxUnlock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
-
+                mtxUnlock(&((selectiveWnd[examinedtimer->seqNum % windowSize]).cellMtx));
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
                 printf("indirizzo successivo %p\n", currentTimer);
 
             }
-            printf("clocktick\n");
             clockTick();
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
@@ -366,7 +349,7 @@ void clockTick()
     mtxLock(&currentTSMTX);
 
     currentTimeSlot = (currentTimeSlot + 1) % timerSize;
-    printf("%d\n", currentTimeSlot);
+//    printf("%d\n", currentTimeSlot);
 
     mtxUnlock(&currentTSMTX);
 }
@@ -437,6 +420,7 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
 
 void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx)
 {
+    printf("maybe ora bis\n");
     sentPacket(sndPacket->seqNum, rtx);
 
     if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
@@ -610,13 +594,13 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     int fileoffset = seqnum-firstnum;
     if(fileoffset < 0)
     {
-        fileoffset = MAXSEQNUM + fileoffset;
+        fileoffset = MAXINT + fileoffset;
     }
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
         mtxLock(&roundsMTX);
-        if ((lseek(file, (fileoffset * 512) + (rounds * MAXSEQNUM), SEEK_SET)) == -1) {
+        if ((lseek(file, (fileoffset * 512) + (rounds * MAXINT), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
         mtxUnlock(&roundsMTX);
@@ -675,6 +659,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
         if (checkPipe(pm, pipeFd[0]) == 1)
         {
             datagram packetRTX = rebuildDatagram(0 , *pm, command);
+            printf("maybe ora!!!!\n");
             sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
             printf("ritrasmetto1\n");
@@ -694,11 +679,11 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
         int fileoffset = pm.seqNum - details.firstSeqNum;
         if(fileoffset < 0)
         {
-            fileoffset = MAXSEQNUM + fileoffset;
+            fileoffset = MAXINT + fileoffset;
         }
 
         mtxLock(&mtxPacketAndDetails);
-        if (lseek(fd, 512*(fileoffset) + (getRounds() * MAXSEQNUM) , SEEK_SET) == -1)
+        if (lseek(fd, 512*(fileoffset) + (getRounds() * MAXINT) , SEEK_SET) == -1)
         {
             perror("errore in lseek");
         }

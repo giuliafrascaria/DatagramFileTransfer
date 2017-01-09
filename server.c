@@ -54,7 +54,7 @@ int receiveFirstDatagram(char * content);
 
 void listenFunction(int socketfd, struct details * details, handshake * message)
 {
-    initWindow();
+    initWindow(0);
 
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));

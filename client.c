@@ -111,7 +111,7 @@ void clientSendFunction()
 
 void initProcess()
 {
-    initWindow();
+    initWindow(0);
 
     // %%%%%%%%%%%%%%%%    thread       %%%%%%%%%%%%%%%%%
 
@@ -166,7 +166,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
     }
     else //se ritorna -1 devo ritrasmettere
     {
-        initWindow();
+        initWindow(0);
         startClientConnection(servAddr, servLen, socketfd);
     }
 
@@ -400,7 +400,6 @@ void listPullListener(int fd, int command)
     {
         printfListInSTDOUT();
     }
-
 }
 
 int checkUserInput(char * buffer)
@@ -611,7 +610,7 @@ void pushSender()
 void initProcessDetails()
 {
     mtxLock(&mtxPacketAndDetails);
-    initWindow();
+    initWindow(1);
     details.mySeq= rand() %2048;
     details.sendBase = details.mySeq;
     details.firstSeqNum = details.sendBase;

@@ -108,7 +108,7 @@ void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char 
 int checkPipe(struct pipeMessage *rtxN, int pipefd);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
-void initWindow();
+void initWindow(int times);
 
 void sentPacket(int packetN, int retransmission);
 
