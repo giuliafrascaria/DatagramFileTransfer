@@ -30,8 +30,10 @@ extern pthread_mutex_t mtxPacketAndDetails;
 volatile int currentTimeSlot = 0;
 volatile int rounds = 0;
 volatile int roundsSender = 0;
+volatile int globalSenderWait = 0;
 
 pthread_mutex_t roundsMTX = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t globalSenderWaitMtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t headtimerMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
@@ -524,14 +526,52 @@ void closeFile(int fd)
     }
 }
 
-void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition)
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection)
 {
-    mtxLock(mtx);
+    if (connection == 0) {
+        while (getGlobalSenderWait() == 0) {
+            sleep(1);
+            printf("globalsenderwait = %d\n", getGlobalSenderWait());
+        }
+    }
+//    printf("lock mutex1\n");
+//    mtxLock(mtx);
+//    printf("lock mutex1\n");
+    printf("globalsenderwait = %d\n", getGlobalSenderWait());
     if(pthread_cond_signal(condition) != 0)
     {
         perror("error in cond signal");
     }
-    mtxUnlock(mtx);
+//    printf("unlock mutex2\n");
+//    mtxUnlock(mtx);
+//    printf("unlock mutex2\n");
+}
+
+void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
+{
+    if(connection == 0) {
+        mtxLock(&globalSenderWaitMtx);
+        globalSenderWait = 1;
+        mtxUnlock(&globalSenderWaitMtx);
+    }
+    printf("\n\nMI METTO IN COND WAIT\n");
+    if(pthread_cond_wait(cond, mutex) != 0)
+    {
+        perror("error in cond wait");
+    }
+    if(connection == 0) {
+        mtxLock(&globalSenderWaitMtx);
+        globalSenderWait = 0;
+        mtxUnlock(&globalSenderWaitMtx);
+    }
+}
+
+int getGlobalSenderWait()
+{
+    mtxLock(&globalSenderWaitMtx);
+    int r = globalSenderWait;
+    mtxUnlock(&globalSenderWaitMtx);
+    return r;
 }
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
@@ -540,6 +580,7 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     {
 
     }
+    tellSenderSendACK(0, -1);
 }
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command)
@@ -568,6 +609,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 }
                 else
                 {
+                    printf("pacchetto ricevuto\n");
                     if (packet.seqNum < firstPacket && alreadyDone == 0) {
                         mtxLock(&roundsMTX);
                         rounds++;
@@ -860,3 +902,5 @@ int getRounds()
     mtxUnlock(&roundsMTX);
     return r;
 }
+
+

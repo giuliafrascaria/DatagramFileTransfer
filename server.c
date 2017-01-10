@@ -77,10 +77,11 @@ void * sendFunction()
 {
 
     printf("sender thread attivato\n\n");
-    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
-    {
-        perror("error in cond wait");
-    }
+//    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+//    {
+//        perror("error in cond wait");
+//    }
+    condWaitSender(&condMTX, &secondConnectionCond, 1);
     printf("sono dopo la cond wait\n\n");
     startSecondConnection(&details, details.sockfd2);
     finishHandshake();
@@ -92,11 +93,12 @@ void * sendFunction()
         globalTimerStop = 0;
         mtxUnlock(&syncMTX);
 
-        printf("mi metto in cond wait\n");
-        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
-        {
-            perror("error in cond wait");
-        }
+//        printf("mi metto in cond wait\n");
+//        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
+//        {
+//            perror("error in cond wait");
+//        }
+        condWaitSender(&condMTX2, &senderCond, 0);
         printf("sono dopo la seconda cond wait, giunse un pacchetto con comando %d\n\n", packet.command);
 
         //-----------------------------------------------------------------------------------------------------------------
@@ -195,7 +197,7 @@ void listenCycle()
                 printf("pacchetto ricevuto opID = %d\n", globalOpID);
                 mtxUnlock(&syncMTX);
 
-                sendSignalThread(&condMTX2, &senderCond);
+                sendSignalThread(&condMTX2, &senderCond, 0);
                 printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
@@ -297,7 +299,7 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
         //avvio il thread listener per connettersi su una nuova socket
         //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
 
-        sendSignalThread(&condMTX, &secondConnectionCond);
+        sendSignalThread(&condMTX, &secondConnectionCond, 1);
 
         //in teoria ora posso connettere la socket
     }
@@ -572,8 +574,8 @@ void sendCycle(int command)
         {
             //non ho capito a cosa serve, e poi non ci sono problemi se si ricomincia il giro??
 
-            printf("la differenza è %d\n", getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE);
-            sleep(1);
+//            printf("la differenza è %d\n", getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE);
+//            sleep(1);
             if (checkPipe(&rtx, pipeFd[0]) != 0)
             {
                 printf("ritrasmetto4\n");
@@ -613,7 +615,7 @@ void sendCycle(int command)
                     alreadyDone = 0;
                     printf("alreadydone meso a 0\n");
                 }
-                //printf("ho inviato un pacchetto\n");
+                printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
             }
             else {
@@ -653,5 +655,6 @@ void sendCycle(int command)
             printf("inviato il pacchetto definitivo con isFinal = -1 \n");
         }
     }
+    printf("HO FINITO ESCO DAL CICLO\n");
     //io userei anche qui un ciclo del sender che aspetta dal listener un pipemessage o un -1
 }

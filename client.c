@@ -88,11 +88,13 @@ void clientSendFunction()
 
     for(;;)
     {
-        printf("sono il sender e mi metto in condWait\n");
-        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
-        {
-            perror("error in sender cond wait");
-        }
+//        printf("sono il sender e mi metto in condWait\n");
+//        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
+//        {
+//            perror("error in sender cond wait");
+//        }
+        printf("faccio una condWaitSender\n");
+        condWaitSender(&condMTX2, &senderCond, 0);
 
         printf("\n\nsono il sender e sono stato svegliato\n\n");
         if(packet.command == 0 || packet.command == 2)
@@ -161,7 +163,7 @@ void startClientConnection(struct sockaddr_in * servAddr, socklen_t servLen, int
         mtxUnlock(&mtxPacketAndDetails);
 
         //segnalo al listener
-        sendSignalThread(&condMTX, &secondConnectionCond);
+        sendSignalThread(&condMTX, &secondConnectionCond, 1);
 
     }
     else //se ritorna -1 devo ritrasmettere
@@ -181,10 +183,11 @@ void * clientListenFunction()
     details.sockfd2 = createSocket();
     mtxUnlock(&mtxPacketAndDetails);
 
-    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
-    {
-        perror("error in cond wait");
-    }
+//    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
+//    {
+//        perror("error in cond wait");
+//    }
+    condWaitSender(&condMTX, &secondConnectionCond, 1);
 
     printf("inizio seconda connessione\n\n");
 
@@ -249,6 +252,7 @@ void listenCycle()
 
                 printf("processing request\n");
                 sendSignalTimer();
+                printf("ho inviato sendSignalTimer\n");
                 parseInput(s);
                 timeout = 0;
 
@@ -368,6 +372,7 @@ void parseInput(char * s)
 void listPullListener(int fd, int command)
 {
 
+    printf("sono dentro listPullListener\n");
     //---------------------proteggere con mutex
     mtxLock(&mtxPacketAndDetails);
     packet.command = command;
@@ -382,7 +387,7 @@ void listPullListener(int fd, int command)
     mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
 
-    sendSignalThread(&condMTX2, &senderCond);
+    sendSignalThread(&condMTX2, &senderCond, 0);
 
     //aspetto il pacchetto con le dimensioni per settare finallen
     //datagram firstDatagram;
@@ -478,7 +483,7 @@ void pushListener()
     else {
         fdglob = fd;
         mtxUnlock(&mtxPacketAndDetails);
-        sendSignalThread(&condMTX2, &senderCond);
+        sendSignalThread(&condMTX2, &senderCond, 0);
         //waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
         waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
 //        printf("--------------SONO USCITO-------------------\n\n\n\n");

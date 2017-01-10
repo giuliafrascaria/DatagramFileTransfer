@@ -145,7 +145,7 @@ void closeFile(int fd);
 
 void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
 
-void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition);
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection);
 
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len);
 
@@ -182,6 +182,10 @@ int getCurrentTimeSlot();
 void incrementRounds();
 
 int getRounds();
+
+void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection);
+
+int getGlobalSenderWait();
 
 //----------------------------------------------------------------------------------------------------------------------
 
