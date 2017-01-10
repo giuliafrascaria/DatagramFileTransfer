@@ -10,6 +10,7 @@
 #include <values.h>
 #include "dataStructures.h"
 
+
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
 
@@ -270,7 +271,6 @@ void mtxUnlock(pthread_mutex_t * mtx)
 
 void * timerFunction()
 {
-
     printf("timer thread attivato\n\n");
     int i = 0;
 
@@ -310,12 +310,17 @@ void * timerFunction()
             while (currentTimer != NULL)
             {
                 printf("ora vado in SIGSEGV all'indirizzo %p\n", currentTimer);
-                rtxN.seqNum = currentTimer->seqNum;
-
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
-                if (currentTimer->isValid) {
-                    if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
+                rtxN.seqNum = currentTimer->seqNum;
+
+                //mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
+                printf("sono il timer e dico di ritrasmettere %d\n", rtxN.seqNum);
+
+                if (currentTimer->isValid)
+                {
+                    if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1)
+                    {
                         perror("error in pipe write");
                     }
                 }
@@ -325,9 +330,11 @@ void * timerFunction()
                 currentTimer = examinedtimer->nextTimer;
                 mtxUnlock(&((selectiveWnd[examinedtimer->seqNum % windowSize]).cellMtx));
                 memset(&rtxN, 0, sizeof(struct pipeMessage));
-                printf("indirizzo successivo %p\n", currentTimer);
+
 
             }
+
+            printf("clocktick\n");
             clockTick();
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
@@ -423,8 +430,17 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
     printf("maybe ora bis\n");
     sentPacket(sndPacket->seqNum, rtx);
 
-    if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr* ) servAddr, servLen)== -1) {
-        perror("datagram send error");
+    //prova, scarto un pacchetto ogni 3 alla prima trasmissione
+    if((sndPacket->seqNum % 5 == 0) && (rtx == 0)) {
+
+        printf("scartato pacchetto %d, rtx = %d\n", sndPacket->seqNum, rtx);
+
+    }
+    else
+    {
+        if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
+            perror("datagram send error");
+        }
     }
     //printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
@@ -467,13 +483,14 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 ACK = (handshake *) buffer;
                 isFinal = ACK->isFinal;
                 ackSentPacket(ACK->sequenceNum);
-                //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
+                printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
             else
             {
                 printf("ho ricevuto un datagramma invece che un ack, mando l'ack\n");
                 datagram * duplicatePacket;
+
                 duplicatePacket = (datagram *) buffer;
                 tellSenderSendACK(duplicatePacket->seqNum, duplicatePacket->isFinal);
             }
@@ -561,14 +578,13 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     alreadyDone = 0;
                 }
                 isFinal = packet.isFinal;
-                //printf("isFinal == %d\n", isFinal);
                 //----------------------------------------------------------------
 
 
                 writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) packet.packetLen);
                 //printf("pacchetto scritto\n");
                 //----------------------------------------------------------------
-                if (command == 0) {
+                if (command == 0 || command == 2) {
                     if (!ackreceived) {
                         ackSentPacket(packet.ackSeqNum);
                         ackreceived = 1;
@@ -600,7 +616,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     {
         //printf("faccio una lseek\n");
         mtxLock(&roundsMTX);
-        if ((lseek(file, (fileoffset * 512) + (rounds * MAXINT), SEEK_SET)) == -1) {
+        if ((lseek(file, (fileoffset<<9) + (rounds * MAXINT), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
         mtxUnlock(&roundsMTX);
@@ -662,7 +678,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             printf("maybe ora!!!!\n");
             sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("ritrasmetto1\n");
+            printf("\n\nritrasmetto1\n");
         }
     }
 }
@@ -683,7 +699,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
         }
 
         mtxLock(&mtxPacketAndDetails);
-        if (lseek(fd, 512*(fileoffset) + (getRounds() * MAXINT) , SEEK_SET) == -1)
+        if (lseek(fd, (fileoffset<<9) + (getRounds() * MAXINT) , SEEK_SET) == -1)
         {
             perror("errore in lseek");
         }
@@ -701,6 +717,10 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command) {
         if (readByte == 512) {
             sndPacket.isFinal = 0;
         }
+    }
+    else
+    {
+        sndPacket.isFinal = 1;
     }
 
 
@@ -753,7 +773,7 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
             //datagram packetRTX = rebuildDatagram(*pm);
             sendDatagram(socketfd, servAddr, servLen, &packet, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("ritrasmetto il primo pacchetto\n");
+            printf("\n\nritrasmetto3\n");
         }
     }
 }

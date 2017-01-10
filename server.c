@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define LSDIR "/home/giogge/Documenti/experiments/"
-  #define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -45,6 +45,7 @@ void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
+void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
 void finishHandshake();
 int ls();
@@ -194,7 +195,7 @@ void listenCycle()
                 printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
-                    waitForFirstPacketListener(details.sockfd, &(details.addr), details.Size);
+                    //waitForFirstPacketListener(details.sockfd, &(details.addr), details.Size);
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
                 }
                 else if (packet.command == 1)
@@ -394,6 +395,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     sendSignalTimer();
 
     mtxLock(&mtxPacketAndDetails);
+    details.mySeq = SYN_ACK.sequenceNum;
     SYN_ACK.ack = details.remoteSeq;
     details.sendBase = SYN_ACK.sequenceNum;
     mtxUnlock(&mtxPacketAndDetails);
@@ -538,12 +540,12 @@ void sendCycle(int command)
     sndPacket.seqNum = getSeqNum();
     sndPacket.command = 1;
     sndPacket.isFinal = 0;
-    printf("mando il primo pacchetto con la dimensione del file\n");
-    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
+    //printf("mando il primo pacchetto con la dimensione del file\n");
+    //sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
 
 
-    waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
-    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
+    //waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
+    //printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
 
 //    int seqnum = details.mySeq;
 
@@ -555,13 +557,16 @@ void sendCycle(int command)
     ssize_t readByte;
 
     struct pipeMessage rtx;
-    while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
-    {
+   // while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
+    //{
+
         while(isFinal == 0)
         {
 
             while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > WINDOWSIZE-10)
             {
+                //non ho capito a cosa serve, e poi non ci sono problemi se si ricomincia il giro??
+
                 printf("la differenza è %d\n", getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE);
                 sleep(1);
                 if (checkPipe(&rtx, pipeFd[0]) != 0)
@@ -583,7 +588,7 @@ void sendCycle(int command)
 
                 else if(readByte != 0) {
                     sndPacket.packetLen = readByte;
-                    sndPacket.isFinal = (short) isFinal;
+                    sndPacket.isFinal = (short) isFinal; //mi sa che non serve
 
                     mtxLock(&mtxPacketAndDetails);
                     sndPacket.ackSeqNum = details.remoteSeq;
@@ -618,7 +623,7 @@ void sendCycle(int command)
             }
         }
 
-        if(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
+        while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
         {
             if(checkPipe(&rtx, pipeFd[0]) != 0)
             {
@@ -627,10 +632,12 @@ void sendCycle(int command)
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             }
         }
-    }
+    //}
     memset(sndPacket.content, 0, 512);
     sndPacket.isFinal = -1;
     sndPacket.seqNum = getSeqNum();
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+
+    //io userei anche qui un ciclo del sender che aspetta dal listener un pipemessage o un -1
 }

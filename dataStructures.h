@@ -10,14 +10,6 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <stdio.h>
-#include <pthread.h>
-
-
-
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
-#define NANOSLEEP 50000
-#define MAXSEQNUM 32768
 
 //------------------------------------------------------------------------------------------------------STRUTTURE DATI
 
@@ -44,9 +36,9 @@ typedef struct datagram_t
     int opID;
     int seqNum;
     int ackSeqNum;
-    ssize_t packetLen;
     short int isFinal;
     char content[512];
+    ssize_t packetLen;
 } datagram;
 
 typedef struct handshake_t
@@ -85,7 +77,6 @@ struct pipeMessage
 };
 
 //----------------------------------------------------------------------------------------------------------------TIMER
-
 
 void * timerFunction();
 void initTimerWheel();
@@ -188,9 +179,9 @@ int getSeqNum();
 
 int getCurrentTimeSlot();
 
-int getRounds();
-
 void incrementRounds();
+
+int getRounds();
 
 //----------------------------------------------------------------------------------------------------------------------
 

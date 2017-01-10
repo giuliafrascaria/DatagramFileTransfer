@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -385,13 +385,13 @@ void listPullListener(int fd, int command)
     sendSignalThread(&condMTX2, &senderCond);
 
     //aspetto il pacchetto con le dimensioni per settare finallen
-    datagram firstDatagram;
-    while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
+    //datagram firstDatagram;
+    //while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
 
-    mtxLock(&mtxPacketAndDetails);
-    details.remoteSeq = firstDatagram.seqNum;
-    mtxUnlock(&mtxPacketAndDetails);
-    tellSenderSendACK(firstDatagram.seqNum, 1);
+    //mtxLock(&mtxPacketAndDetails);
+    //details.remoteSeq = firstDatagram.seqNum;
+    //mtxUnlock(&mtxPacketAndDetails);
+    //tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
     printf("aspetto datagrammi\n");
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd, 0);
@@ -479,7 +479,7 @@ void pushListener()
         fdglob = fd;
         mtxUnlock(&mtxPacketAndDetails);
         sendSignalThread(&condMTX2, &senderCond);
-        waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
+        //waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
         waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
 //        printf("--------------SONO USCITO-------------------\n\n\n\n");
     }
@@ -515,7 +515,7 @@ void pushSender()
     }
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
     //printWindow();
-    waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
+    //waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
     while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))
     {
@@ -640,6 +640,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
 
     mtxLock(&mtxPacketAndDetails);
     details.sendBase = SYN.sequenceNum;
+    details.mySeq = SYN.sequenceNum;
     details.remoteSeq = SYN.sequenceNum;
     mtxUnlock(&mtxPacketAndDetails);
 
