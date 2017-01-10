@@ -208,7 +208,6 @@ void listenCycle()
                 {
                     int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, packet.isFinal);
-                    printf("inizio la ricezione vera, numero di sequenza iniziale : %d\n", details.remoteSeq);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd, 1);
                 }
 
@@ -570,12 +569,10 @@ void sendCycle(int command)
     while(isFinal == 0)
     {
 
-        while(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE > WINDOWSIZE-10)
+        while(abs(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE) > WINDOWSIZE-10)
         {
             //non ho capito a cosa serve, e poi non ci sono problemi se si ricomincia il giro??
 
-//            printf("la differenza è %d\n", getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE);
-//            sleep(1);
             if (checkPipe(&rtx, pipeFd[0]) != 0)
             {
                 printf("ritrasmetto4\n");
@@ -649,9 +646,10 @@ void sendCycle(int command)
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
     while(checkPipe(&finalAck, pipeSendACK[0]) == 0)
     {
-        if (checkPipe(&rtx, pipeFd[0]) != 0) {
+        if (checkPipe(&rtx, pipeFd[0]) != 0)
+        {
             printf("ritrasmetto5\n");
-            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
+            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
             printf("inviato il pacchetto definitivo con isFinal = -1 \n");
         }
     }

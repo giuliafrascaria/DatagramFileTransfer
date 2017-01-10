@@ -534,17 +534,12 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int con
             printf("globalsenderwait = %d\n", getGlobalSenderWait());
         }
     }
-//    printf("lock mutex1\n");
-//    mtxLock(mtx);
-//    printf("lock mutex1\n");
-    printf("globalsenderwait = %d\n", getGlobalSenderWait());
+    mtxLock(mtx);
     if(pthread_cond_signal(condition) != 0)
     {
         perror("error in cond signal");
     }
-//    printf("unlock mutex2\n");
-//    mtxUnlock(mtx);
-//    printf("unlock mutex2\n");
+    mtxUnlock(mtx);
 }
 
 void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
@@ -592,6 +587,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     mtxUnlock(&mtxPacketAndDetails);
 
+    printf("numero pacchetto iniziale %d\n", firstPacket);
     int ackreceived = 0;
     int alreadyDone = 0;
 
@@ -654,7 +650,8 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     {
         fileoffset = MAXINT + fileoffset;
     }
-    printf("\noffset = %d, len = %d\n", fileoffset, (int) len);
+    if(len != 8)
+        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -743,7 +740,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
 
         mtxLock(&mtxPacketAndDetails);
         printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
-        if (lseek(fd, (fileoffset*512) + (getRounds() * MAXINT) , SEEK_SET) == -1)
+        if (lseek(fd, (fileoffset<<9) + (getRounds() * MAXINT) , SEEK_SET) == -1)
         {
             perror("errore in lseek");
         }
@@ -803,7 +800,7 @@ char * stringParser(char * string)
     return sToReturn;
 }
 
-/*
+
 void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     int finish = 0;
@@ -828,17 +825,17 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
     }
 }
 
+
 void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
 
-    printf("sono uscito da qui \n\n\n");
     struct pipeMessage ack;
     ack.isFinal = 100; // a caso
     ack.seqNum = 100;
     tellSenderSendACK(ack.seqNum, ack.isFinal);
 }
-*/
+
 
 void sendSignalTimer()
 {
@@ -903,4 +900,10 @@ int getRounds()
     return r;
 }
 
-
+int checkForError(struct pipeMessage * pm)
+{
+    if (pm->isFinal > 1)
+        return 0;
+    else
+        return 1;
+}

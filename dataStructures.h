@@ -187,6 +187,8 @@ void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connectio
 
 int getGlobalSenderWait();
 
+int checkForError(struct pipeMessage * pm);
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H
