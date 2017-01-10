@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-#define LSDIR "/home/giogge/Documenti/serverHome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/serverHome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -435,6 +435,9 @@ int ls()
     memset(listFilename,0,17);
     strcpy(listFilename, "lsTempXXXXXX");
 
+    char * array[1000];
+    int count = 0;
+
     int fd = mkstemp(listFilename);
     while(fd == -1)
     {
@@ -453,7 +456,12 @@ int ls()
         {
             if((ent->d_name)[0] != '.')
             {
-                dprintf(fd, "%s\n", ent->d_name);
+                if((array[count] = malloc(500)) == NULL)
+                    perror("error in malloc");
+
+                strcpy(array[count], ent->d_name);
+                count++;
+//                dprintf(fd, "%s\n", ent->d_name);
             }
         }
         closedir (dir);
@@ -461,7 +469,37 @@ int ls()
     else
         perror ("errore nell'apertura della directory");
 
+    int i, j;
+    char * temp;
+    if((temp = malloc(500)) == NULL){
+        perror("error on malloc temp");
+    }
+
+    for(i=0; i < count-2 ; i++){
+        for(j=i+1; j< count; j++)
+        {
+            if(strcmp(array[i],array[j]) > 0)
+            {
+                strcpy(temp,array[i]);
+                strcpy(array[i],array[j]);
+                strcpy(array[j],temp);
+                memset(temp, 0, 100);
+            }
+        }
+    }
+
+    for (int k = 0; k < count-2; k++)
+    {
+        dprintf(fd, "%s\n", array[k]);
+    }
     lseek(fd, 0, SEEK_SET);
+
+    //--------------------------------------------------------------------------------------------------------
+
+
+
+
+    //--------------------------------------------------------------------------------------------------------
     return fd;
 }
 

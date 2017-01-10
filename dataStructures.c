@@ -608,7 +608,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 }
                 else
                 {
-                    printf("pacchetto ricevuto\n");
+//                    printf("pacchetto ricevuto\n");
                     if (packet.seqNum < firstPacket && alreadyDone == 0) {
                         mtxLock(&roundsMTX);
                         rounds++;
@@ -654,7 +654,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
         fileoffset = MAXINT + fileoffset;
     }
     if(len != 8)
-        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
+//        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -903,4 +903,10 @@ int getRounds()
     return r;
 }
 
-
+int checkForError(struct pipeMessage * pm)
+{
+    if (pm->isFinal > 1)
+        return 0;
+    else
+        return 1;
+}
