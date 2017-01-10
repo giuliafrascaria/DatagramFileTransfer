@@ -427,9 +427,12 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
     sentPacket(sndPacket->seqNum, rtx);
 
     //prova, scarto un pacchetto ogni 3 alla prima trasmissione
-    if((sndPacket->seqNum % 5 == 0) && (rtx == 0)) {
+    if((sndPacket->seqNum % 35 == 0) && (rtx == 0)) {
 
-        printf("scartato pacchetto %d, rtx = %d\n", sndPacket->seqNum, rtx);
+        //printf("scartato pacchetto %d, rtx = %d\n", sndPacket->seqNum, rtx);
+        if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
+            perror("datagram send error");
+        }
 
     }
     else
@@ -479,7 +482,7 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 ACK = (handshake *) buffer;
                 isFinal = ACK->isFinal;
                 ackSentPacket(ACK->sequenceNum);
-                printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
+                //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
             else
@@ -584,7 +587,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     datagram packet;
 
     mtxLock(&mtxPacketAndDetails);
-    int firstPacket = details.remoteSeq + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+    int firstPacket = details.firstSeqNum;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     mtxUnlock(&mtxPacketAndDetails);
 
     printf("numero pacchetto iniziale %d\n", firstPacket);
@@ -900,10 +903,4 @@ int getRounds()
     return r;
 }
 
-int checkForError(struct pipeMessage * pm)
-{
-    if (pm->isFinal > 1)
-        return 0;
-    else
-        return 1;
-}
+

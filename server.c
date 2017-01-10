@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -550,7 +550,7 @@ void sendCycle(int command)
 
 
     //waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
-    //printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
+    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
 
 //    int seqnum = details.mySeq;
 
@@ -612,7 +612,7 @@ void sendCycle(int command)
                     alreadyDone = 0;
                     printf("alreadydone meso a 0\n");
                 }
-                printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
+                //printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
             }
             else {
@@ -643,7 +643,7 @@ void sendCycle(int command)
     sndPacket.isFinal = -1;
     sndPacket.seqNum = getSeqNum();
     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
-    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+    printf("inviato il pacchetto definitivo con isFinal = -1 e seq %d \n", sndPacket.seqNum);
     while(checkPipe(&finalAck, pipeSendACK[0]) == 0)
     {
         if (checkPipe(&rtx, pipeFd[0]) != 0)

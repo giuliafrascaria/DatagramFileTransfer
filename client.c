@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -384,6 +384,8 @@ void listPullListener(int fd, int command)
     mtxUnlock(&syncMTX);
 
     packet.seqNum = details.mySeq;
+
+    details.firstSeqNum = details.remoteSeq + 1;
     mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
 
@@ -464,14 +466,14 @@ void pushListener()
     packet.isFinal = 0;
     packet.opID =  rand() % 2048;
 
-    //packet.seqNum = details.mySeq;
-    //details.firstSeqNum = details.mySeq;
+    packet.seqNum = details.mySeq;
+    details.firstSeqNum = details.mySeq;
     mtxUnlock(&mtxPacketAndDetails);
 
-//    mtxLock(&syncMTX);
-//    globalOpID = packet.opID;
-//    printf("pacchetto inviato OPID %d\n", packet.opID);
-//    mtxUnlock(&syncMTX);
+    mtxLock(&syncMTX);
+    globalOpID = packet.opID;
+    printf("pacchetto inviato OPID %d\n", packet.opID);
+    mtxUnlock(&syncMTX);
     //-----------------------------------------
 
     mtxLock(&mtxPacketAndDetails);
@@ -486,7 +488,7 @@ void pushListener()
         sendSignalThread(&condMTX2, &senderCond, 0);
         waitForFirstPacketListener(details.sockfd2, &(details.addr2), details.Size2);
         waitForAckCycle(details.sockfd2, (struct sockaddr *) &details.addr2, &details.Size2);
-//        printf("--------------SONO USCITO-------------------\n\n\n\n");
+        printf("--------------SONO USCITO-------------------\n\n\n\n");
     }
 }
 
@@ -663,7 +665,7 @@ void sendSYN(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd)
     mtxLock(&mtxPacketAndDetails);
     details.sendBase = SYN.sequenceNum;
     details.mySeq = SYN.sequenceNum;
-    details.remoteSeq = SYN.sequenceNum;
+    //details.remoteSeq = SYN.sequenceNum;
     mtxUnlock(&mtxPacketAndDetails);
 
     sendACK(socketfd, &SYN, servAddr, servLen);
