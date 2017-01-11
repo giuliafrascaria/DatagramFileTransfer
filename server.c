@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -597,6 +597,7 @@ void sendCycle(int command)
 
     mtxLock(&mtxPacketAndDetails);
     details.firstSeqNum = details.mySeq;
+    int firstseqnum = details.firstSeqNum;
     mtxUnlock(&mtxPacketAndDetails);
 
     int finalSeq = -1;
@@ -647,11 +648,11 @@ void sendCycle(int command)
                     sndPacket.opID = globalOpID;
                     mtxUnlock(&syncMTX);
 
-                    if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
+                    if (sndPacket.seqNum < firstseqnum && alreadyDone == 0) {
                         incrementRounds();
                         alreadyDone++;
                         printf("round incrementato\n");
-                    } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
+                    } else if (packet.seqNum >= firstseqnum && alreadyDone > 0) {
                         alreadyDone = 0;
                         printf("alreadydone meso a 0\n");
                     }

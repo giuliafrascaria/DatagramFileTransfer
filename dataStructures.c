@@ -43,7 +43,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 10;
+int offset = 50;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -589,7 +589,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     datagram packet;
 
     mtxLock(&mtxPacketAndDetails);
-    int firstPacket = details.firstSeqNum;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+    int firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
     mtxUnlock(&mtxPacketAndDetails);
 
     printf("numero pacchetto iniziale %d\n", firstPacket);
@@ -663,12 +663,18 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 //        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-        //printf("faccio una lseek\n");
-        mtxLock(&roundsMTX);
+
+/*        mtxLock(&roundsMTX);
+        printf("in writefile ho rounds: %d\n", rounds);
         if ((lseek(file, (fileoffset<<9) + (rounds * MAXINT), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
-        mtxUnlock(&roundsMTX);
+        mtxUnlock(&roundsMTX);*/
+
+        if ((lseek(file, fileoffset*512, SEEK_SET)) == -1) {
+            perror("1: lseek error");
+        }
+
     }
     if (write(file, content, len) == -1)
     {
@@ -741,14 +747,15 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
 
     if (fd != 0)
     {
+        mtxLock(&mtxPacketAndDetails);
         int fileoffset = pm.seqNum - details.firstSeqNum;
         if(fileoffset < 0)
         {
             fileoffset = MAXINT + fileoffset;
         }
 
-        mtxLock(&mtxPacketAndDetails);
-//        printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
+
+        printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
         if (lseek(fd, (fileoffset<<9) + (getRounds() * MAXINT) , SEEK_SET) == -1)
         {
             perror("errore in lseek");

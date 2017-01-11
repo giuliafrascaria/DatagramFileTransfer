@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -339,8 +339,13 @@ void parseInput(char * s)
         printf("richiesta di pull per il pacchetto %s\n", content);
 
         fileName = malloc(512);
-        strcat(fileName, PULLDIR);
-        strcat(fileName, content);
+
+
+
+        if(sprintf(fileName, "%s%s", PULLDIR, content) == -1)
+        {
+            perror("error in filename");
+        }
 
         printf("|    path : %s \n", fileName);
 
@@ -386,6 +391,7 @@ void listPullListener(int fd, int command)
     packet.seqNum = details.mySeq;
 
     details.firstSeqNum = details.remoteSeq + 1;
+    printf("aspetto datagrammi, e il first seqnum atteso è %d\n", details.firstSeqNum);
     mtxUnlock(&mtxPacketAndDetails);
     //-----------------------------------------
 
@@ -400,7 +406,7 @@ void listPullListener(int fd, int command)
     //mtxUnlock(&mtxPacketAndDetails);
     //tellSenderSendACK(firstDatagram.seqNum, 1);
     //aspetto datagrammi
-    printf("aspetto datagrammi\n");
+
     getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd, 0);
 
     if(command == 0)
@@ -735,7 +741,7 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
     ACK.sequenceNum = details.remoteSeq;
     mtxUnlock(&mtxPacketAndDetails);
 
-    ACK.windowsize = windowSize;
+    //ACK.windowsize = windowSize;
 
     sendACK(socketfd, &ACK, servAddr, servLen);
     //sentPacket(ACK.sequenceNum, 0);

@@ -37,14 +37,15 @@ typedef struct datagram_t
     int seqNum;
     int ackSeqNum;
     short int isFinal;
-    char content[512];
     ssize_t packetLen;
+    char content[512];
+
 } datagram;
 
 typedef struct handshake_t
 {
     int ack; //se vale 1 sto ackando il precedente
-    int windowsize; //lo imposta il server nella risposta, è opID nelle successive transazioni
+    //int windowsize; //lo imposta il server nella risposta, è opID nelle successive transazioni
     int sequenceNum;
     short int isFinal;
 } handshake;
