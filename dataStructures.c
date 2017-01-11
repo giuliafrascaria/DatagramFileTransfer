@@ -654,7 +654,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
         fileoffset = MAXINT + fileoffset;
     }
     if(len != 8)
-//        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
+        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -742,7 +742,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
         }
 
         mtxLock(&mtxPacketAndDetails);
-        printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
+//        printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
         if (lseek(fd, (fileoffset<<9) + (getRounds() * MAXINT) , SEEK_SET) == -1)
         {
             perror("errore in lseek");
@@ -907,6 +907,36 @@ int checkForError(struct pipeMessage * pm)
 {
     if (pm->isFinal > 1)
         return 0;
+    else
+        return 1;
+}
+
+int canISend()
+{
+    int seqNum = getSeqNum() % windowSize;
+    int sendBase = getSendBase() % windowSize;
+    int offset;
+    if (seqNum > sendBase) {
+        if ((seqNum - sendBase) > (WINDOWSIZE - 1)) {
+            return 0;
+        } else
+            return 1;
+    } else
+        offset = windowSize - (seqNum + sendBase);
+    if ((offset) > (WINDOWSIZE - 1)) {
+        return 0;
+    } else
+        return 1;
+}
+
+int canISend2()
+{
+    int seqNum = getSeqNum() ;
+    int sendBase = getSendBase() ;
+    if((seqNum-sendBase) > (WINDOWSIZE-1))
+    {
+        return 0;
+    }
     else
         return 1;
 }

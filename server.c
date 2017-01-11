@@ -542,7 +542,9 @@ int receiveFirstDatagram(char * content)
     {
         perror("TE LO AVEVO DETTO");
     }
-
+    mtxLock(&mtxPacketAndDetails);
+    details.firstSeqNum = packet.seqNum + 1;
+    mtxUnlock(&mtxPacketAndDetails);
     return fd;
 }
 
@@ -607,10 +609,8 @@ void sendCycle(int command)
     while(isFinal == 0)
     {
 
-        while(abs(getSeqNum()%WINDOWSIZE - getSendBase()%WINDOWSIZE) > WINDOWSIZE-10)
+        while(!canISend())
         {
-            //non ho capito a cosa serve, e poi non ci sono problemi se si ricomincia il giro??
-
             if (checkPipe(&rtx, pipeFd[0]) != 0)
             {
                 printf("ritrasmetto4\n");

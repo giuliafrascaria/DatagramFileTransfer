@@ -529,7 +529,7 @@ void pushSender()
     {
         while(isFinal == 0)
         {
-            while (abs(getSeqNum() % WINDOWSIZE - getSendBase() % WINDOWSIZE) > (WINDOWSIZE - 1))
+            while (!canISend())
             {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
                     printf("ritrasmetto7\n");

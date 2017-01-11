@@ -189,6 +189,8 @@ int getGlobalSenderWait();
 
 int checkForError(struct pipeMessage * pm);
 
+int canISend();
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H
