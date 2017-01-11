@@ -191,6 +191,12 @@ int checkForError(struct pipeMessage * pm);
 
 int canISend();
 
+int getDataError();
+
+void setDataError();
+
+void resetDataError();
+
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

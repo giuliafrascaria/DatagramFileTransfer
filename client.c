@@ -502,6 +502,7 @@ void pushSender()
 
     initProcessDetails();
 
+    int thereIsAnError = 0;
     int len = getFileLen(fdglob);
     memset(sndPacket.content, 0, 512);
     char * s = malloc(100);
@@ -525,79 +526,82 @@ void pushSender()
     //printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
-    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)))
+    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)) && (thereIsAnError == 0))
     {
-        while(isFinal == 0)
-        {
-            while (!canISend())
-            {
+        while(isFinal == 0) {
+            while (!canISend() && !getDataError()) {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
                     printf("ritrasmetto7\n");
                     sndPacket = rebuildDatagram(fdglob, rtx, 1);
                     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
             }
-            if (checkPipe(&rtx, pipeFd[0]) == 0)
-            {
-                memset(sndPacket.content, 0, 512);
-                readByte = read(fdglob, sndPacket.content, 512);
-                if (readByte < 0)
-                {
-                    perror("error in read");
-                }
-                else if (readByte != 0)
-                {
-                    sndPacket.packetLen = readByte;
+            if (!getDataError()) {
+                if (checkPipe(&rtx, pipeFd[0]) == 0) {
+                    memset(sndPacket.content, 0, 512);
+                    readByte = read(fdglob, sndPacket.content, 512);
+                    if (readByte < 0) {
+                        perror("error in read");
+                    } else if (readByte != 0) {
+                        sndPacket.packetLen = readByte;
 
-                    putDataInPacketPush(&sndPacket, isFinal);
+                        putDataInPacketPush(&sndPacket, isFinal);
 
-                    if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
-                        incrementRounds();
-                        alreadyDone++;
-                    } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
-                        alreadyDone = 0;
+                        if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
+                            incrementRounds();
+                            alreadyDone++;
+                        } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
+                            alreadyDone = 0;
+                        }
+
+                        sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
+                    } else {
+                        isFinal = 1;
+                        finalSeq = getSeqNum() - 1;
                     }
 
-                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
                 } else {
-                    isFinal = 1;
-                    finalSeq = getSeqNum() - 1;
+                        printf("ritrasmetto8\n");
+                        sndPacket = rebuildDatagram(fdglob, rtx, 1);
+                        sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
-
-            } else {
-                printf("ritrasmetto8\n");
-                sndPacket = rebuildDatagram(fdglob, rtx, 1);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
-                //retransmitForPush(fdglob, &rtx);
+            }
+            else
+            {
+                isFinal = 1;
+                thereIsAnError = 1;
+                printf("sono uscito per un errore\n");
             }
         }
-        if ((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE))
+        if(thereIsAnError == 0)
         {
-            if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                printf("ritrasmetto9\n");
-                sndPacket = rebuildDatagram(fdglob, rtx, 1);
-                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
+            if ((getSendBase() % WINDOWSIZE) != ((finalSeq + 1) % WINDOWSIZE)) {
+                if (checkPipe(&rtx, pipeFd[0]) != 0) {
+                    printf("ritrasmetto9\n");
+                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
+                }
             }
         }
-
     }
-    printf("mi appresto a mandare il pacchetto finale\n");
-    mtxLock(&mtxPacketAndDetails);
-    memset(sndPacket.content, 0, 512);
-    mtxUnlock(&mtxPacketAndDetails);
-    putDataInPacketPush(&sndPacket, -1);
-    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
-    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
-    while(checkPipe(&finalAck, pipeSendACK[0]) == 0)
+    if(!thereIsAnError)
     {
-        if (checkPipe(&rtx, pipeFd[0]) != 0)
-        {
-            printf("ritrasmetto5\n");
-            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
-            printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+        printf("mi appresto a mandare il pacchetto finale\n");
+        mtxLock(&mtxPacketAndDetails);
+        memset(sndPacket.content, 0, 512);
+        mtxUnlock(&mtxPacketAndDetails);
+        putDataInPacketPush(&sndPacket, -1);
+        sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
+        printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+        while (checkPipe(&finalAck, pipeSendACK[0]) == 0) {
+            if (checkPipe(&rtx, pipeFd[0]) != 0) {
+                printf("ritrasmetto5\n");
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+                printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+            }
         }
+        printf("HO FINITO ESCO DAL CICLO\n");
     }
-    printf("HO FINITO ESCO DAL CICLO\n");
 }
 
 //void retransmitForPush(int fd, struct pipeMessage * rtx)
@@ -633,6 +637,7 @@ void pushSender()
 
 void initProcessDetails()
 {
+    resetDataError();
     mtxLock(&mtxPacketAndDetails);
     initWindow(1);
     details.mySeq= rand() %2048;
