@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 50000
+#define NANOSLEEP 1000000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -20,6 +20,7 @@ int windowSize = WINDOWSIZE;
 int pipeFd[2];
 int pipeSendACK[2];
 datagram packet;
+struct RTTsample currentRTT; //presente in datagram.h
 
 volatile int globalOpID, globalTimerStop = 0;
 
@@ -282,6 +283,8 @@ void startSecondConnection(struct details * cl, int socketfd)
 
     //mando il datagramma ancora senza connettermi
     sendSYNACK2(details.sockfd2, details.Size2, cl);
+    //terminateConnection(details.sockfd2, &(details.addr2), details.Size2, cl, 2);
+
 //    terminateConnection(details.sockfd2, &(details.addr2), details.Size2, cl, 2);
 }
 

@@ -13,6 +13,7 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 struct selectCell selectiveWnd[WINDOWSIZE];
 struct headTimer timerWheel[TIMERSIZE] = {NULL};
@@ -26,6 +27,10 @@ extern datagram packet;
 extern int globalOpID;
 extern pthread_mutex_t syncMTX;
 extern pthread_mutex_t mtxPacketAndDetails;
+extern struct RTTsample currentRTT;
+
+struct timespec tstart={0,0};
+struct timespec tend={0,0};
 
 volatile int currentTimeSlot = 0;
 volatile int rounds = 0;
@@ -38,12 +43,13 @@ pthread_mutex_t currentTSMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t headtimerMTX = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mtxTimerSleep = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condTimerSleep = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t timemtx = PTHREAD_MUTEX_INITIALIZER;
 
 volatile int dataError = 0;
 
 
 
-int offset = 20;
+int offset = 3;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -135,6 +141,11 @@ void initWindow(int times)
             if (pthread_mutex_init(&(selectiveWnd[i].cellMtx), NULL) != 0) {
                 perror("mutex init error");
             }
+
+
+            currentRTT.seqNum = -1;
+            currentRTT.previousEstimate = 3*(10^9);
+            currentRTT.RTT = 3*(10^9);
         }
         mtxLock(&(selectiveWnd[i].cellMtx));
         selectiveWnd[i].value = 0;
@@ -154,6 +165,9 @@ void sentPacket(int packetN, int retransmission)
     //printf("updated selective repeat\n");
 
     int pos = getWheelPosition();
+
+
+
     startTimer(packetN, pos);
 
     mtxUnlock(&((selectiveWnd[packetN % windowSize]).cellMtx));
@@ -362,10 +376,13 @@ void clockTick()
 int getWheelPosition()
 {
     mtxLock(&currentTSMTX);
+
+    int actualOffset = (int) (currentRTT.previousEstimate / 1000000);
+    int timerpos = MAX(offset, actualOffset);
     int pos = (currentTimeSlot + offset) % timerSize;
-    //printf("timer will be set in position %d since offset is %d\n\n", pos, offset);
+    printf("timer will be set in position %d since offset is %d\n\n", pos, timerpos);
     mtxUnlock(&currentTSMTX);
-    return(pos);
+    return(timerpos);
 }
 
 void startTimer(int packetN, int posInWheel)
@@ -443,6 +460,8 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
             perror("datagram send error");
         }
     }
+
+    startRTTsample(sndPacket->seqNum);
     //printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
 
@@ -484,6 +503,11 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 ACK = (handshake *) buffer;
                 isFinal = ACK->isFinal;
                 ackSentPacket(ACK->sequenceNum);
+
+                if(ACK->sequenceNum == getRTTseq())
+                {
+                    takingRTT();
+                }
                 //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
@@ -642,6 +666,11 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                             if (!ackreceived) {
                                 ackSentPacket(packet.ackSeqNum);
                                 ackreceived = 1;
+                            }
+
+                            if(packet.ackSeqNum == getRTTseq())
+                            {
+                                takingRTT();
                             }
                         }
 
@@ -1007,3 +1036,66 @@ void resetDataError()
     mtxUnlock(&syncMTX);
 }
 
+long updateRTTavg(long previousEstimate, long newRTT)
+{
+    //printf("provo ad aggiornare media esponenziale del RTT, prima del calcolo: %ld\n", previousEstimate);
+
+    long RTO, RTTVAR, SRTT;
+    long R = newRTT;
+    //costante data dallo standard, k = 4
+
+    RTTVAR = R>>1;
+    RTTVAR = RTTVAR + (RTTVAR>>3) + (labs( newRTT - previousEstimate)>>3);
+    SRTT = newRTT - (newRTT>>2) + (previousEstimate>>2);
+    RTO = SRTT + (RTTVAR<<2);
+
+    //printf("dopo il calcolo: %ld\n", RTO);
+
+    return RTO;
+}
+
+void takingRTT()
+{
+    //if (ackN == currentRTT->seqNum)
+    //{
+    printf("inizio takingRTT\n");
+    mtxLock(&timemtx);
+    clock_gettime(CLOCK_MONOTONIC, &tend);
+
+    printf("currentRTT -> %ld\n" , currentRTT.timestamp);
+    printf("tend -> %ld \n\n\n",tend.tv_nsec);
+
+    currentRTT.RTT = tend.tv_nsec - currentRTT.timestamp ;
+
+    //printf("sampled RTT for packet %d = %ld\n", ackN, currentRTT->RTT);
+
+    currentRTT.previousEstimate = updateRTTavg(currentRTT.previousEstimate, currentRTT.RTT);
+
+    mtxUnlock(&timemtx);
+
+    printf("finisco takingRTT\n");
+
+    //}
+}
+
+void startRTTsample(int seq)
+{
+    mtxLock(&timemtx);
+    if (currentRTT.RTT != 0) {
+
+        currentRTT.seqNum = seq;
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
+        currentRTT.timestamp = tstart.tv_nsec;
+        currentRTT.RTT = 0;
+        printf("ho preso il tempo per il pacchetto %d\n", seq);
+    }
+    mtxUnlock(&timemtx);
+}
+
+int getRTTseq()
+{
+    mtxLock(&timemtx);
+    int rttseq = currentRTT.seqNum;
+    mtxUnlock(&timemtx);
+    return rttseq;
+}

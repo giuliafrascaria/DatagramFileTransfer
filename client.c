@@ -10,10 +10,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 50000
+#define NANOSLEEP 1000000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -24,6 +24,7 @@ int pipeSendACK[2];
 volatile int globalTimerStop = 0;
 volatile int globalOpID;
 volatile int fdList;
+struct RTTsample currentRTT; //presente in datagram.h
 
 datagram packet;
 
@@ -221,6 +222,8 @@ void listenCycle()
     {
         perror("error in fcntl");
     }
+
+
 
     for(;;)
     {
@@ -456,7 +459,7 @@ void printfListInSTDOUT()
 
     while (sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count) == -1) {
         perror("error in sendfile");
-        sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count);
+        //sendfile(STDOUT_FILENO, fdList, 0L, (size_t) count);
     }
 
     printf("\n------------------------------------------------\n\n");

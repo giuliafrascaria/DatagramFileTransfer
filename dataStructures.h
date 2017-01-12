@@ -77,6 +77,15 @@ struct pipeMessage
     short int isFinal;
 };
 
+struct RTTsample
+{
+    int seqNum;
+    long timestamp;
+//    short int isValid;
+    long RTT;
+    long previousEstimate;
+};
+
 //----------------------------------------------------------------------------------------------------------------TIMER
 
 void * timerFunction();
@@ -171,6 +180,14 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
 void sendSignalTimer();
 
 int readGlobalTimerStop();
+
+long updateRTTavg(long previousEstimate, long newRTT);
+
+void takingRTT();
+
+void startRTTsample(int seq);
+
+int getRTTseq();
 
 int getOpID();
 
