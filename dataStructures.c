@@ -743,12 +743,28 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             }
             memset(pm, 0, sizeof(struct pipeMessage));
         }
-        if (finish != -1 && !getDataError()) {
-            if (checkPipe(pm, pipeFd[0]) == 1) {
-                datagram packetRTX = rebuildDatagram(0, *pm, command);
-                sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
-                memset(pm, 0, sizeof(struct pipeMessage));
-                printf("ritrasmetto1\n");
+        if(finish != -1 && !getDataError())
+        {
+            if (checkPipe(pm, pipeFd[0]) == 1)
+            {
+                if(command == 0 || command == 2)
+                {
+                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
+                    printf("ritrasmetto pacchetto iniziale di list o pull\n");
+                }
+                else if(command == 1 && pm->seqNum == packet.seqNum)
+                {
+                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
+                    printf("ritrasmetto pacchetto iniziale di push\n");
+                }
+                else
+                {
+                    datagram packetRTX = rebuildDatagram(0 , *pm, command);
+                    sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
+                    memset(pm, 0, sizeof(struct pipeMessage));
+                    printf("ritrasmetto pacchetto di dati push\n");
+                }
+
             }
         }
         if(getDataError()){

@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -192,7 +192,9 @@ void * clientListenFunction()
     printf("inizio seconda connessione\n\n");
 
     sendSYN2(&(details.addr), details.Size, details.sockfd2);
-    while(waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2) == 0){
+
+    while(waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2) == 0)
+    {
         sendSYN2(&(details.addr), details.Size, details.sockfd2);
     }
     send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
@@ -251,7 +253,7 @@ void listenCycle()
             else
             {
                 //prendo un timestamp
-                clock_gettime(CLOCK_REALTIME, &opStart);
+                clock_gettime(CLOCK_MONOTONIC_COARSE, &opStart);
 
                 printf("processing request\n");
                 sendSignalTimer();
@@ -259,16 +261,16 @@ void listenCycle()
                 parseInput(s);
                 timeout = 0;
 
-                clock_gettime(CLOCK_REALTIME, &opEnd);
+                clock_gettime(CLOCK_MONOTONIC_COARSE, &opEnd);
 
                 ssize_t len = lseek(fdglob, 0, SEEK_END)+1;
 
                 if(len > 0)
                 {
                     printf("\n\n\n----------------------------------------------------------------\n");
-                    printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec - opStart.tv_nsec) / 1000000);
+                    printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec/1000000 - opStart.tv_nsec/1000000));
                     printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                    printf("|\tvelocità media: %f MB/s  \n", (len/1000000)/((opEnd.tv_sec - opStart.tv_sec)+ 0.0001));
+                    printf("|\tvelocità media: %f MB/s  \n", (len)/(opEnd.tv_nsec/1000 - opStart.tv_nsec/1000) + 0.001);
                     printf("----------------------------------------------------------------\n");
                     printf("\n\n");
                 }
@@ -400,6 +402,7 @@ void listPullListener(int fd, int command)
 
     sendSignalThread(&condMTX2, &senderCond, 0);
 
+
     //aspetto il pacchetto con le dimensioni per settare finallen
     //datagram firstDatagram;
     //while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
@@ -477,12 +480,14 @@ void pushListener()
 
     packet.seqNum = details.mySeq;
     details.firstSeqNum = details.mySeq;
-    mtxUnlock(&mtxPacketAndDetails);
 
-    mtxLock(&syncMTX);
     globalOpID = packet.opID;
     printf("pacchetto inviato OPID %d\n", packet.opID);
-    mtxUnlock(&syncMTX);
+    mtxUnlock(&mtxPacketAndDetails);
+
+
+
+
     //-----------------------------------------
 
     mtxLock(&mtxPacketAndDetails);

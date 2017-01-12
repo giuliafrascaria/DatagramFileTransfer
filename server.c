@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -43,7 +43,7 @@ pthread_mutex_t mtxPacketAndDetails = PTHREAD_MUTEX_INITIALIZER;
 void sendCycle(int command);
 void listenCycle();
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr);
-void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl );
+void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl, int step);
 void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl);
 void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl);
 int waitForAck2(int socketFD, struct sockaddr_in * clientAddr);
@@ -253,7 +253,7 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     while(readGlobalTimerStop() != 2){}
 
     sendSYNACK(privateSocket, socklen, cl);
-    terminateConnection(privateSocket, &(cl->addr), socklen, cl);
+    terminateConnection(privateSocket, &(cl->addr), socklen, cl, 1);
 
 }
 
@@ -282,11 +282,11 @@ void startSecondConnection(struct details * cl, int socketfd)
 
     //mando il datagramma ancora senza connettermi
     sendSYNACK2(details.sockfd2, details.Size2, cl);
-    //terminateConnection(privateSocket, &(cl->addr), socklen, cl);
+    terminateConnection(details.sockfd2, &(details.addr2), details.Size2, cl, 2);
 
 }
 
-void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl )
+void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl, int step )
 {
     int rcvSequence = waitForAck(socketFD, clientAddr);
     if(rcvSequence == -1)
@@ -305,8 +305,17 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     }
     else //se ritorna 0 devo ritrasmettere
     {
-        sendSYNACK(socketFD, socklen , cl);
-        terminateConnection(socketFD, clientAddr, socklen, cl);
+        if(step == 1)
+        {
+            sendSYNACK(socketFD, socklen , cl);
+            terminateConnection(socketFD, clientAddr, socklen, cl, 1);
+        }
+        if(step == 2)
+        {
+            sendSYNACK2(socketFD, socklen, cl);
+            terminateConnection(socketFD, clientAddr, socklen, cl, 2);
+        }
+
     }
 }
 
