@@ -190,6 +190,8 @@ int getGlobalSenderWait();
 
 int canISend();
 
+int canISend2();
+
 int getDataError();
 
 void setDataError();

@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -270,7 +270,7 @@ void listenCycle()
                     printf("\n\n\n----------------------------------------------------------------\n");
                     printf("|\toperazione completata in %lu millisecondi  \n", (opEnd.tv_nsec/1000000 - opStart.tv_nsec/1000000));
                     printf("|\tdimensione del file: %d kB\n", (int) len/1000);
-                    printf("|\tvelocità media: %f MB/s  \n", (len)/(opEnd.tv_nsec/1000 - opStart.tv_nsec/1000) + 0.001);
+                    printf("|\tvelocità media: %.3f MB/s  \n", (len)/(opEnd.tv_nsec/1000 - opStart.tv_nsec/1000) + 0.001);
                     printf("----------------------------------------------------------------\n");
                     printf("\n\n");
                 }
@@ -540,12 +540,12 @@ void pushSender()
     //printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
-    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)) && (thereIsAnError == 0))
-    {
+//    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)) && (thereIsAnError == 0))
+//    {
         while(isFinal == 0) {
             while (!canISend() && !getDataError()) {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                    printf("ritrasmetto7\n");
+//                    printf("ritrasmetto7\n");
                     sndPacket = rebuildDatagram(fdglob, rtx, 1);
                     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
@@ -575,7 +575,7 @@ void pushSender()
                     }
 
                 } else {
-                        printf("ritrasmetto8\n");
+//                        printf("ritrasmetto8, %d\n", rtx.seqNum);
                         sndPacket = rebuildDatagram(fdglob, rtx, 1);
                         sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
                 }
@@ -587,19 +587,26 @@ void pushSender()
                 printf("sono uscito per un errore\n");
             }
         }
-        if(thereIsAnError == 0)
-        {
-            if ((getSendBase() % WINDOWSIZE) != ((finalSeq + 1) % WINDOWSIZE)) {
-                if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                    printf("ritrasmetto9\n");
-                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
-                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
-                }
-            }
-        }
-    }
+//        if(thereIsAnError == 0)
+//        {
+//            if ((getSendBase() % WINDOWSIZE) != ((finalSeq + 1) % WINDOWSIZE)) {
+//                if (checkPipe(&rtx, pipeFd[0]) != 0) {
+//                    printf("ritrasmetto9\n");
+//                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
+//                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
+//                }
+//            }
+//        }
+//    }
     if(!thereIsAnError)
     {
+        while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
+            if (checkPipe(&rtx, pipeFd[0]) != 0) {
+//                printf("ritrasmetto5\n");
+                sndPacket = rebuildDatagram(fdglob, rtx, sndPacket.command);
+                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+            }
+        }
         printf("mi appresto a mandare il pacchetto finale\n");
         mtxLock(&mtxPacketAndDetails);
         memset(sndPacket.content, 0, 512);
@@ -609,7 +616,7 @@ void pushSender()
         printf("inviato il pacchetto definitivo con isFinal = -1 \n");
         while (checkPipe(&finalAck, pipeSendACK[0]) == 0) {
             if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                printf("ritrasmetto5\n");
+//                printf("ritrasmetto5\n");
                 sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 printf("inviato il pacchetto definitivo con isFinal = -1 \n");
             }

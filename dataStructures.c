@@ -181,7 +181,7 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
     else {
-        printf("mi hai ackato qualcosa che non ho mai inviato, %d\n", ackN);
+        printf("mi hai ackato qualcosa che non ho mai inviato, %d - valore %d\n", ackN, (selectiveWnd[ackN % windowSize]).value);
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
 }
@@ -803,7 +803,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
         }
         if (readByte == 0) {
             sndPacket.isFinal = -1;
-            printf("invio la ritrasmissione del pacchetto finale\n");
+//            printf("invio la ritrasmissione del pacchetto finale\n");
         }
         if (readByte < 512 && readByte > 0) {
             sndPacket.isFinal = 1;
@@ -813,7 +813,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
             sndPacket.isFinal = 0;
             sndPacket.packetLen = readByte;
         }
-        printf("ho fatto il rebuild con readByte = %d del pacchetto %d\n", (int) readByte, pm.seqNum);
+//        printf("ho fatto il rebuild con readByte = %d del pacchetto %d\n", (int) readByte, pm.seqNum);
     }
     else
     {
@@ -822,7 +822,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
 
 
     sndPacket.seqNum = pm.seqNum;
-    printf("ritrasmetto2 %d\n", pm.seqNum);
+//    printf("ritrasmetto2 %d\n", pm.seqNum);
     sndPacket.opID = getOpID();
 
     return sndPacket;
@@ -953,17 +953,22 @@ int canISend()
     int seqNum = getSeqNum() % windowSize;
     int sendBase = getSendBase() % windowSize;
     int offset;
-    if (seqNum > sendBase) {
+    if (seqNum >= sendBase) {
         if ((seqNum - sendBase) > (WINDOWSIZE - 1)) {
             return 0;
-        } else
+        } else {
+//            printf("offset = %d\n", seqNum - sendBase);
             return 1;
+        }
     } else
-        offset = windowSize - (seqNum + sendBase);
+        offset = windowSize + seqNum - sendBase;
+
     if ((offset) > (WINDOWSIZE - 1)) {
         return 0;
-    } else
+    } else {
+//        printf("offset = %d\n", offset);
         return 1;
+    }
 }
 
 int canISend2()
@@ -974,8 +979,10 @@ int canISend2()
     {
         return 0;
     }
-    else
+    else {
+//        printf("offset = %d\n", seqNum- sendBase);
         return 1;
+    }
 }
 
 void setDataError()
