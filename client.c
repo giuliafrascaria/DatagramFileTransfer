@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -192,7 +192,9 @@ void * clientListenFunction()
     printf("inizio seconda connessione\n\n");
 
     sendSYN2(&(details.addr), details.Size, details.sockfd2);
-    waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2);
+    while(waitForSYNACK(&(details.addr2), details.Size2, details.sockfd2) == 0){
+        sendSYN2(&(details.addr), details.Size, details.sockfd2);
+    }
     send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
 
     mtxLock(&syncMTX);
@@ -223,6 +225,7 @@ void listenCycle()
         mtxLock(&syncMTX);
         globalTimerStop = 0;
         mtxUnlock(&syncMTX);
+        resetDataError();
 
         memset(&packet, 0, sizeof(datagram));
         res = 0;

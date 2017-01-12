@@ -43,7 +43,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 50;
+int offset = 20;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -517,7 +517,6 @@ int openFile(char * fileName)
     if (fd == -1)
     {
         perror("1: error on open file, retransmission");
-        fd = open(fileName, O_RDONLY);
     }
     return fd;
 }
@@ -576,22 +575,37 @@ int getGlobalSenderWait()
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
 {
-    while(receiveACK(socket, address, slen) != -1)
+    int received = 0;
+    int exit = 0;
+    while((received != -1 && exit == 0) && !getDataError())
     {
-
+        received = receiveACK(socket, address, slen);
+        if (received == -2){
+            setDataError();
+            exit = 1;
+        }
     }
-    tellSenderSendACK(0, -1);
+    if(exit == 0 && !getDataError())
+        tellSenderSendACK(0, -1);
+    else
+        printf("sono il listener ed esco con un errore");
 }
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command)
 {
     int isFinal = 0;
     datagram packet;
-
-    mtxLock(&mtxPacketAndDetails);
-    int firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
-    mtxUnlock(&mtxPacketAndDetails);
-
+    int firstPacket;
+    if(command != 1) {
+        mtxLock(&mtxPacketAndDetails);
+        firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+        mtxUnlock(&mtxPacketAndDetails);
+    }
+    else {
+        mtxLock(&mtxPacketAndDetails);
+        firstPacket = details.firstSeqNum;
+        mtxUnlock(&mtxPacketAndDetails);
+    }
     printf("numero pacchetto iniziale %d\n", firstPacket);
     int ackreceived = 0;
     int alreadyDone = 0;
@@ -601,7 +615,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         if(checkSocketDatagram(address, *slen, socket, &packet) == 1)
         {
             if(packet.opID == getOpID()) {
-                if (packet.isFinal != -2) {
+                if (packet.isFinal != -2 || getDataError()) {
                     if (packet.isFinal == -1) {
                         isFinal = -1;
                         tellSenderSendACK(packet.seqNum, packet.isFinal);
@@ -643,13 +657,14 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                 {
                     setDataError();
                     isFinal = -1;
+                    printf("eroor\n\n");
                 }
             }
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
-
-    printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
+    if(!getDataError())
+        printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
 }
 
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
@@ -663,18 +678,12 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
 //        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-
-/*        mtxLock(&roundsMTX);
-        printf("in writefile ho rounds: %d\n", rounds);
-        if ((lseek(file, (fileoffset<<9) + (rounds * MAXINT), SEEK_SET)) == -1) {
+        //printf("faccio una lseek\n");
+        mtxLock(&roundsMTX);
+        if ((lseek(file, (fileoffset<<9), SEEK_SET)) == -1) {
             perror("1: lseek error");
         }
-        mtxUnlock(&roundsMTX);*/
-
-        if ((lseek(file, fileoffset*512, SEEK_SET)) == -1) {
-            perror("1: lseek error");
-        }
-
+        mtxUnlock(&roundsMTX);
     }
     if (write(file, content, len) == -1)
     {
@@ -714,26 +723,37 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
 
             if (ACK == NULL)
                 perror("error in malloc");
-            else
-            {
+            else {
                 //printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
                 finish = pm->isFinal;
-                if(finish == 1) {
-                    printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
+                if (finish != -2) {
+                    if (finish == 1) {
+                        printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
+                    }
+                    ACK->isFinal = pm->isFinal;
+                    ACK->sequenceNum = pm->seqNum;
+                    sendACK(socketfd, ACK, servAddr, servLen);
                 }
-                ACK->isFinal = pm->isFinal;
-                ACK->sequenceNum = pm->seqNum;
-                sendACK(socketfd, ACK, servAddr, servLen);
+                else
+                {
+                    setDataError();
+                    finish = -1;
+                    printf("sono uscito per via di un errore (sender)\n");
+                }
             }
             memset(pm, 0, sizeof(struct pipeMessage));
         }
-        if (checkPipe(pm, pipeFd[0]) == 1)
-        {
-            datagram packetRTX = rebuildDatagram(0 , *pm, command);
-//            printf("maybe ora!!!!\n");
-            sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
-            memset(pm, 0, sizeof(struct pipeMessage));
-            printf("ritrasmetto1\n");
+        if (finish != -1 && !getDataError()) {
+            if (checkPipe(pm, pipeFd[0]) == 1) {
+                datagram packetRTX = rebuildDatagram(0, *pm, command);
+                sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
+                memset(pm, 0, sizeof(struct pipeMessage));
+                printf("ritrasmetto1\n");
+            }
+        }
+        if(getDataError()){
+            finish = -1;
+            printf("sono uscito per via di un errore (sender)\n");
         }
     }
 }
@@ -754,9 +774,8 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
             fileoffset = MAXINT + fileoffset;
         }
 
-
-        printf("fileOffset = %d, getRounds = %d\n", fileoffset, getRounds());
-        if (lseek(fd, (fileoffset<<9) + (getRounds() * MAXINT) , SEEK_SET) == -1)
+//        printf("fileOffset = %d, getRounds = %d, pm.seqNum = %d, firstNum = %d\n", fileoffset, getRounds(), pm.seqNum, details.firstSeqNum);
+        if (lseek(fd, (fileoffset<<9), SEEK_SET) == -1)
         {
             perror("errore in lseek");
         }
@@ -778,7 +797,7 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
             sndPacket.isFinal = 0;
             sndPacket.packetLen = readByte;
         }
-        printf("ho fatto il rebuild con readByte = %d\n", (int) readByte);
+        printf("ho fatto il rebuild con readByte = %d del pacchetto %d\n", (int) readByte, pm.seqNum);
     }
     else
     {
@@ -816,7 +835,6 @@ char * stringParser(char * string)
     return sToReturn;
 }
 
-
 void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     int finish = 0;
@@ -841,7 +859,6 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
     }
 }
 
-
 void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
@@ -851,7 +868,6 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
     ack.seqNum = 100;
     tellSenderSendACK(ack.seqNum, ack.isFinal);
 }
-
 
 void sendSignalTimer()
 {
@@ -914,14 +930,6 @@ int getRounds()
     int r = roundsSender;
     mtxUnlock(&roundsMTX);
     return r;
-}
-
-int checkForError(struct pipeMessage * pm)
-{
-    if (pm->isFinal > 1)
-        return 0;
-    else
-        return 1;
 }
 
 int canISend()

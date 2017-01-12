@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 50000
 
-#define LSDIR "/home/giogge/Documenti/serverHome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/serverHome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -575,9 +575,9 @@ void sendCycle(int command)
         printf("sprintf result %s\n\n", absolutepath);
         fd = openFile(absolutepath);
     }
-
+    if(fd != -1) {
 //    int len = getFileLen(fd);
-    memset(sndPacket.content, 0, 512);
+        memset(sndPacket.content, 0, 512);
 //    if(sprintf(sndPacket.content, "%d", len) < 0)
 //    {
 //        perror("error in sprintf");
@@ -586,12 +586,13 @@ void sendCycle(int command)
 //    sndPacket.seqNum = getSeqNum();
 //    sndPacket.command = 1;
 //    sndPacket.isFinal = 0;
-    //printf("mando il primo pacchetto con la dimensione del file\n");
-    //sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
+        //printf("mando il primo pacchetto con la dimensione del file\n");
+        //sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
 
 
-    //waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
-    printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n", sndPacket.content, sndPacket.seqNum);
+        //waitForFirstPacketSender(details.sockfd2, &(details.addr2), details.Size2);
+        printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n",
+               sndPacket.content, sndPacket.seqNum);
 
 //    int seqnum = details.mySeq;
 
@@ -600,53 +601,49 @@ void sendCycle(int command)
     int firstseqnum = details.firstSeqNum;
     mtxUnlock(&mtxPacketAndDetails);
 
-    int finalSeq = -1;
-    int isFinal = 0;
-    int alreadyDone = 0;
-    ssize_t readByte;
-    int thereIsAnError = 0;
+        int finalSeq = -1;
+        int isFinal = 0;
+        int alreadyDone = 0;
+        ssize_t readByte;
+        int thereIsAnError = 0;
 
-    struct pipeMessage rtx;
-    struct pipeMessage finalAck;
-   // while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
-    //{
+        struct pipeMessage rtx;
+        struct pipeMessage finalAck;
+        // while(getSendBase()%WINDOWSIZE != finalSeq%WINDOWSIZE)
+        //{
 
-    while(isFinal == 0)
-    {
+        while (isFinal == 0) {
 
-        while(!canISend() && !getDataError())
-        {
-            if (checkPipe(&rtx, pipeFd[0]) != 0)
-            {
+            while (!canISend() && !getDataError()) {
+                if (checkPipe(&rtx, pipeFd[0]) != 0) {
 //                printf("ritrasmetto4\n");
 //                sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
 //                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                     //ritrasmetti
                     sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+                }
             }
-        }
 
-        if(!getDataError())
-        {
-            if (checkPipe(&rtx, pipeFd[0]) == 0) {
-                memset(sndPacket.content, 0, 512);
-                readByte = read(fd, sndPacket.content, 512);
-                if (readByte == -1) {
-                    perror("error in file read");
-                } else if (readByte != 0) {
-                    sndPacket.packetLen = readByte;
-                    sndPacket.isFinal = (short) isFinal; //mi sa che non serve
+            if (!getDataError()) {
+                if (checkPipe(&rtx, pipeFd[0]) == 0) {
+                    memset(sndPacket.content, 0, 512);
+                    readByte = read(fd, sndPacket.content, 512);
+                    if (readByte == -1) {
+                        perror("error in file read");
+                    } else if (readByte != 0) {
+                        sndPacket.packetLen = readByte;
+                        sndPacket.isFinal = (short) isFinal; //mi sa che non serve
 
-                    mtxLock(&mtxPacketAndDetails);
-                    sndPacket.ackSeqNum = details.remoteSeq;
-                    mtxUnlock(&mtxPacketAndDetails);
+                        mtxLock(&mtxPacketAndDetails);
+                        sndPacket.ackSeqNum = details.remoteSeq;
+                        mtxUnlock(&mtxPacketAndDetails);
 
-                    sndPacket.seqNum = getSeqNum();
+                        sndPacket.seqNum = getSeqNum();
 
-                    mtxLock(&syncMTX);
-                    sndPacket.opID = globalOpID;
-                    mtxUnlock(&syncMTX);
+                        mtxLock(&syncMTX);
+                        sndPacket.opID = globalOpID;
+                        mtxUnlock(&syncMTX);
 
                     if (sndPacket.seqNum < firstseqnum && alreadyDone == 0) {
                         incrementRounds();
@@ -666,37 +663,45 @@ void sendCycle(int command)
                     //ritrasmetti
                     sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+                }
+            } else {
+                isFinal = 1;
+                thereIsAnError = 1;
             }
         }
-        else{
-            isFinal = 1;
-            thereIsAnError = 1;
+        printf("esco dal ciclo di isFinal == 0\n");
+        if (!thereIsAnError) {
+            while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
+                if (checkPipe(&rtx, pipeFd[0]) != 0) {
+                    printf("ritrasmetto5\n");
+                    sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+                }
+            }
+            printf("sono qui\n");
+            memset(sndPacket.content, 0, 512);
+            sndPacket.isFinal = -1;
+            sndPacket.seqNum = getSeqNum();
+            sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
+            printf("inviato il pacchetto definitivo con isFinal = -1 e seq %d \n", sndPacket.seqNum);
+            while (checkPipe(&finalAck, pipeSendACK[0]) == 0) {
+                if (checkPipe(&rtx, pipeFd[0]) != 0) {
+                    printf("ritrasmetto5\n");
+                    sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
+                    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+                }
+            }
+            printf("HO FINITO ESCO DAL CICLO\n");
+            //io userei anche qui un ciclo del sender che aspetta dal listener un pipemessage o un -1
         }
     }
-    printf("esco dal ciclo di isFinal == 0\n");
-    if(!thereIsAnError) {
-        while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
-            if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                printf("ritrasmetto5\n");
-                sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
-            }
-        }
-        //}
-        printf("sono qui\n");
+    else {
         memset(sndPacket.content, 0, 512);
-        sndPacket.isFinal = -1;
+        sndPacket.isFinal = -2;
         sndPacket.seqNum = getSeqNum();
+        sndPacket.opID = getOpID();
         sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
-        printf("inviato il pacchetto definitivo con isFinal = -1 e seq %d \n", sndPacket.seqNum);
-        while (checkPipe(&finalAck, pipeSendACK[0]) == 0) {
-            if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                printf("ritrasmetto5\n");
-                sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
-                printf("inviato il pacchetto definitivo con isFinal = -1 \n");
-            }
-        }
-        printf("HO FINITO ESCO DAL CICLO\n");
-        //io userei anche qui un ciclo del sender che aspetta dal listener un pipemessage o un -1
+        setDataError();
+        printf("esco da sendCycle con un errore \n");
     }
 }
