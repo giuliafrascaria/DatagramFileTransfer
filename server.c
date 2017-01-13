@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 1000
 
-#define LSDIR "/home/giogge/Documenti/serverHome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/serverHome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -638,7 +638,7 @@ void sendCycle(int command)
         if (!thereIsAnError) {
             while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                    printf("ritrasmetto5\n");
+//                    printf("ritrasmetto5\n");
                     sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 }
