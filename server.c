@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000000
+#define NANOSLEEP 1000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -618,7 +618,7 @@ void sendCycle(int command)
                         sndPacket.seqNum = getSeqNum();
 
                         sndPacket.opID = getOpID();
-                        printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
+                        //printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
                         sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
                     } else {
                         isFinal = 1;

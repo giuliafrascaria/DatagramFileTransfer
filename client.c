@@ -10,10 +10,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000000
+#define NANOSLEEP 1000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;

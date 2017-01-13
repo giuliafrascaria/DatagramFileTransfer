@@ -49,7 +49,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 3;
+int offset = 10;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -195,7 +195,7 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
     else {
-        printf("mi hai ackato qualcosa che non ho mai inviato, %d - valore %d\n", ackN, (selectiveWnd[ackN % windowSize]).value);
+        //printf("mi hai ackato qualcosa che non ho mai inviato, %d - valore %d\n", ackN, (selectiveWnd[ackN % windowSize]).value);
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
 }
@@ -328,9 +328,10 @@ void * timerFunction()
 //                {
                     mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
-                    if (currentTimer->isValid) {
+                    if (currentTimer->isValid)
+                    {
                         rtxN.seqNum = currentTimer->seqNum;
-//                        printf("dico di ritrasmettere (isValid = 1) %d\n", currentTimer->seqNum);
+                        printf("dico di ritrasmettere (isValid = 1) %d\n", currentTimer->seqNum);
                         if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
                             perror("error in pipe write");
                         }
@@ -377,12 +378,12 @@ int getWheelPosition()
 {
     mtxLock(&currentTSMTX);
 
-    int actualOffset = (int) (currentRTT.previousEstimate / 1000000);
-    int timerpos = MAX(offset, actualOffset);
-    int pos = (currentTimeSlot + offset) % timerSize;
-    printf("timer will be set in position %d since offset is %d\n\n", pos, timerpos);
+    int actualOffset = (int) (currentRTT.previousEstimate / (nanoSleep*1000));
+    int maxoffset = MAX(offset, actualOffset);
+    int pos = (currentTimeSlot + maxoffset) % timerSize;
+    //printf("timer will be set in position %d since max offset is %d\n\n", pos, maxoffset);
     mtxUnlock(&currentTSMTX);
-    return(timerpos);
+    return(pos);
 }
 
 void startTimer(int packetN, int posInWheel)
@@ -513,7 +514,7 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
             }
             else
             {
-                printf("ho ricevuto un datagramma invece che un ack, mando l'ack\n");
+                //printf("ho ricevuto un datagramma invece che un ack, mando l'ack\n");
                 datagram * duplicatePacket;
 
                 duplicatePacket = (datagram *) buffer;
@@ -641,6 +642,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
             if(packet.opID == getOpID()) {
                 if (packet.isFinal != -2 || getDataError()) {
                     if (packet.isFinal == -1) {
+                        mtxLock(&mtxPacketAndDetails);
+                        details.remoteSeq = packet.seqNum;
+                        mtxUnlock(&mtxPacketAndDetails);
                         isFinal = -1;
                         tellSenderSendACK(packet.seqNum, packet.isFinal);
                         memset(&packet, 0, sizeof(datagram));
@@ -692,8 +696,12 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
         }
         //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
+
     if(!getDataError())
+    {
         printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
+    }
+
 }
 
 void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
@@ -704,7 +712,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
         fileoffset = MAXINT + fileoffset;
     }
     if(len != 8)
-        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
+        //printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -1058,10 +1066,12 @@ void takingRTT()
 {
     //if (ackN == currentRTT->seqNum)
     //{
-    printf("inizio takingRTT\n");
+    //printf("inizio takingRTT\n");
     mtxLock(&timemtx);
     clock_gettime(CLOCK_MONOTONIC, &tend);
 
+    //printf("currentRTT -> %ld\n" , currentRTT.timestamp);
+    //printf("tend -> %ld \n\n\n",tend.tv_nsec);
 //    printf("currentRTT -> %ld\n" , currentRTT.timestamp);
 //    printf("tend -> %ld \n\n\n",tend.tv_nsec);
 
@@ -1073,7 +1083,7 @@ void takingRTT()
 
     mtxUnlock(&timemtx);
 
-//    printf("finisco takingRTT\n");
+    //printf("finisco takingRTT\n");
 
     //}
 }
