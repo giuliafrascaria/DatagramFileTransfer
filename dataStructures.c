@@ -64,7 +64,8 @@ struct sockaddr_in createStruct(unsigned short portN)
 
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    //address.sin_addr.s_addr = htonl(INADDR_ANY);
+    address.sin_addr.s_addr = inet_addr("10.220.119.230");
 
     return address;
 }
@@ -387,7 +388,7 @@ int getWheelPosition()
     int actualOffset = (int) (currentRTT.previousEstimate / (nanoSleep*1000));
     int maxoffset = MAX(offset, actualOffset);
     int pos = (currentTimeSlot + maxoffset) % timerSize;
-    //printf("timer will be set in position %d since max offset is %d\n\n", pos, maxoffset);
+    printf("timer will be set in position %d since max offset is %d\n\n", pos, maxoffset);
     mtxUnlock(&currentTSMTX);
     return(pos);
 }
@@ -550,8 +551,10 @@ void closeFile(int fd)
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection)
 {
-    if (connection == 0) {
-        while (getGlobalSenderWait() == 0) {
+    if (connection == 0)
+    {
+        while (getGlobalSenderWait() == 0)
+        {
             sleep(1);
             printf("globalsenderwait = %d\n", getGlobalSenderWait());
         }
@@ -566,7 +569,8 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int con
 
 void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
 {
-    if(connection == 0) {
+    if(connection == 0)
+    {
         mtxLock(&globalSenderWaitMtx);
         globalSenderWait = 1;
         mtxUnlock(&globalSenderWaitMtx);
@@ -576,7 +580,8 @@ void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connectio
     {
         perror("error in cond wait");
     }
-    if(connection == 0) {
+    if(connection == 0)
+    {
         mtxLock(&globalSenderWaitMtx);
         globalSenderWait = 0;
         mtxUnlock(&globalSenderWaitMtx);

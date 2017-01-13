@@ -10,10 +10,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000
+#define NANOSLEEP 10000
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -213,6 +213,10 @@ void listenCycle()
     char * s = malloc(512);
     int timeout = 0;
     int res = 0;
+    int synack2rtx = 0;
+    handshake ack;
+
+
     if(s == NULL)
     {
         perror("error in malloc");
@@ -240,6 +244,12 @@ void listenCycle()
 
         while(!res)
         {
+            synack2rtx = checkSocketAck(&(details.addr2), details.Size2, details.sockfd2, &ack);
+            if(synack2rtx == 1)
+            {
+                send_ACK(&(details.addr2), details.Size2, details.sockfd2, details.remoteSeq);
+            }
+
             res = checkUserInput(s);
             if(res == -1)
             {

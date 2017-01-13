@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 1000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/giogge/Documenti/serverHome/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
