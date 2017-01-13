@@ -49,7 +49,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 300;
+int offset = 2000;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -92,20 +92,26 @@ int createSocket()
 
 int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK)
 {
-    ssize_t res;
-    res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
-
-    if((res == -1) && (errno != EAGAIN))
-    {
+    char * buffer = malloc(sizeof(datagram));
+    if(buffer == NULL) {
+        perror("error in malloc buffer");
         return -1;
     }
-    else if(res > 0)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
+    else {
+        ssize_t res;
+        res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
+        if(res == sizeof(handshake)) {
+            memcpy(ACK, buffer, sizeof(handshake));
+            return 1;
+        }
+        else if ((res == -1) && (errno != EAGAIN))
+            return -1;
+        else if(res == sizeof(datagram)) {
+            return 2;
+        }
+        else {
+            return 0;
+        }
     }
 }
 

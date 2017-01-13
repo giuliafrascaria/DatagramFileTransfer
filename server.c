@@ -380,13 +380,17 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
         if (sockResult == -1)
         {
             perror("error in socket read");
-
         }
         if (sockResult == 1)
         {
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
+        }
+        else if(sockResult == 2)
+        {
+            initWindow(1);
+            return 1;
         }
     }
 }
