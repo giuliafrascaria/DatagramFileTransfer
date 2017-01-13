@@ -11,8 +11,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 1000000
 
-#define LSDIR "/home/giogge/Documenti/serverHome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/serverHome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -283,9 +283,7 @@ void startSecondConnection(struct details * cl, int socketfd)
 
     //mando il datagramma ancora senza connettermi
     sendSYNACK2(details.sockfd2, details.Size2, cl);
-    //terminateConnection(details.sockfd2, &(details.addr2), details.Size2, cl, 2);
 
-//    terminateConnection(details.sockfd2, &(details.addr2), details.Size2, cl, 2);
 }
 
 void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_t socklen, struct details *cl )
@@ -582,17 +580,12 @@ void sendCycle(int command)
     if(fd != -1) {
         memset(sndPacket.content, 0, 512);
 
-        printf("sono arrivato fin qui, la stringa da inviare è %s con numero di sequenza iniziale : %d\n",
-               sndPacket.content, sndPacket.seqNum);
-
         mtxLock(&mtxPacketAndDetails);
         details.firstSeqNum = details.mySeq;
-        int firstseqnum = details.firstSeqNum;
         mtxUnlock(&mtxPacketAndDetails);
 
         int finalSeq = -1;
         int isFinal = 0;
-        int alreadyDone = 0;
         ssize_t readByte;
         int thereIsAnError = 0;
 
@@ -624,19 +617,8 @@ void sendCycle(int command)
 
                         sndPacket.seqNum = getSeqNum();
 
-                        mtxLock(&syncMTX);
-                        sndPacket.opID = globalOpID;
-                        mtxUnlock(&syncMTX);
-
-                        if (sndPacket.seqNum < firstseqnum && alreadyDone == 0) {
-                            incrementRounds();
-                            alreadyDone++;
-                            printf("round incrementato\n");
-                        } else if (packet.seqNum >= firstseqnum && alreadyDone > 0) {
-                            alreadyDone = 0;
-                            printf("alreadydone meso a 0\n");
-                        }
-                        //printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
+                        sndPacket.opID = getOpID();
+                        printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
                         sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
                     } else {
                         isFinal = 1;

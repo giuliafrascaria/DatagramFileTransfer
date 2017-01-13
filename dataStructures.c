@@ -620,16 +620,16 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     int isFinal = 0;
     datagram packet;
     int firstPacket;
-    if(command != 1) {
-        mtxLock(&mtxPacketAndDetails);
-        firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
-        mtxUnlock(&mtxPacketAndDetails);
-    }
-    else {
+//    if(command == 2) {
+//        mtxLock(&mtxPacketAndDetails);
+//        firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
+//        mtxUnlock(&mtxPacketAndDetails);
+//    }
+//    else {
         mtxLock(&mtxPacketAndDetails);
         firstPacket = details.firstSeqNum;
         mtxUnlock(&mtxPacketAndDetails);
-    }
+//    }
     printf("numero pacchetto iniziale %d\n", firstPacket);
     int ackreceived = 0;
     int alreadyDone = 0;
@@ -704,7 +704,7 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
         fileoffset = MAXINT + fileoffset;
     }
     if(len != 8)
-//        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
+        printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
         //printf("faccio una lseek\n");
@@ -1062,8 +1062,8 @@ void takingRTT()
     mtxLock(&timemtx);
     clock_gettime(CLOCK_MONOTONIC, &tend);
 
-    printf("currentRTT -> %ld\n" , currentRTT.timestamp);
-    printf("tend -> %ld \n\n\n",tend.tv_nsec);
+//    printf("currentRTT -> %ld\n" , currentRTT.timestamp);
+//    printf("tend -> %ld \n\n\n",tend.tv_nsec);
 
     currentRTT.RTT = tend.tv_nsec - currentRTT.timestamp ;
 
@@ -1073,7 +1073,7 @@ void takingRTT()
 
     mtxUnlock(&timemtx);
 
-    printf("finisco takingRTT\n");
+//    printf("finisco takingRTT\n");
 
     //}
 }
@@ -1087,7 +1087,7 @@ void startRTTsample(int seq)
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         currentRTT.timestamp = tstart.tv_nsec;
         currentRTT.RTT = 0;
-        printf("ho preso il tempo per il pacchetto %d\n", seq);
+//        printf("ho preso il tempo per il pacchetto %d\n", seq);
     }
     mtxUnlock(&timemtx);
 }

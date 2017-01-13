@@ -12,8 +12,8 @@
 #define TIMERSIZE 2048
 #define NANOSLEEP 1000000
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -405,18 +405,7 @@ void listPullListener(int fd, int command)
 
     sendSignalThread(&condMTX2, &senderCond, 0);
 
-
-    //aspetto il pacchetto con le dimensioni per settare finallen
-    //datagram firstDatagram;
-    //while(checkSocketDatagram(&(details.addr2), details.Size2, details.sockfd2, &firstDatagram) != 1) {}
-
-    //mtxLock(&mtxPacketAndDetails);
-    //details.remoteSeq = firstDatagram.seqNum;
-    //mtxUnlock(&mtxPacketAndDetails);
-    //tellSenderSendACK(firstDatagram.seqNum, 1);
-    //aspetto datagrammi
-
-    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd, 0);
+    getResponse(details.sockfd2, &(details.addr2), &(details.Size2), fd, command);
 
     if(command == 0)
     {
