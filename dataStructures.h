@@ -1,7 +1,3 @@
-//
-// Created by giogge on 08/12/16.
-//
-
 
 #ifndef DATASTRUCTURES_H
 #define DATASTRUCTURES_H
@@ -11,7 +7,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-//------------------------------------------------------------------------------------------------------STRUTTURE DATI
+//--------------------------------------------------------------------------------------------------------STRUTTURE DATI
 
 struct timer
 {
@@ -80,128 +76,88 @@ struct RTTsample
     long previousEstimate;
 };
 
-//----------------------------------------------------------------------------------------------------------------TIMER
 
-void * timerFunction();
-void initTimerWheel();
-void startTimer(int packetN, int posInWheel);
-int getWheelPosition();
-void clockTick();
+//-------------------------------------------------------------------------------------------------------------PROTOTIPI
 
-//------------------------------------------------------------------------------------------------TERMINATION & RECOVERY
-
-
-
-//--------------------------------------------------------------------------------------------------------RETRANSMISSION
-int checkPipe(struct pipeMessage *rtxN, int pipefd);
-//------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
-
-void initWindow(int times);
-
-void sentPacket(int packetN, int retransmission);
-
+//A
 void ackSentPacket(int ackN);
-
-//void printWindow();
-
-void slideWindow();
-
-//----------------------------------------------------------------------------------------------------------------THREAD
-
-void createThread(pthread_t * thread, void * function, void * arguments);
-
-void initPipe(int pipefd[2]);
-
-//---------------------------------------------------------------------------------------------------------CREATE SOCKET
-
-int createSocket();
-
-struct sockaddr_in createStruct(unsigned short portN);
-
-void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
-
-int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK);
-
-int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet);
-
-void mtxLock(pthread_mutex_t * mtx);
-
-void mtxUnlock(pthread_mutex_t * mtx);
-
-//---------------------------------------------------------------------------------------SHORT FUNCTION TO SIMPLIFY CODE
-
-void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx);
-
-void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
-
-int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
-
-int openFile(char * fileName);
-
-void closeFile(int fd);
-
-void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
-
-void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection);
-
-void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len);
-
-void tellSenderSendACK(int packetN, short int isFinal);
-
-datagram rebuildDatagram(int fd, struct pipeMessage pm, int command);
-
 void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, int command);
-
-void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command);
-
-void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
-
-int getFileLen(int fd);
-
-char * stringParser(char * string);
-
-void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
-
-void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
-
-void sendSignalTimer();
-
-int readGlobalTimerStop();
-
-long updateRTTavg(long previousEstimate, long newRTT);
-
-void takingRTT();
-
-void startRTTsample(int seq);
-
-int getRTTseq();
-
-int getOpID();
-
-int getSendBase();
-
-int getSeqNum();
-
-int getCurrentTimeSlot();
-
-void incrementRounds();
-
-//int getRounds();
-
+void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen);
+//B
+void bindSocket(int sockfd, struct sockaddr * address , socklen_t size);
+//C
+void clockTick();
+int checkPipe(struct pipeMessage *rtxN, int pipefd);
+int createSocket();
+void createThread(pthread_t * thread, void * function, void * arguments);
+int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK);
+int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet);
+void closeFile(int fd);
 void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection);
-
-int getGlobalSenderWait();
-
 int canISend();
-
-//int canISend2();
-
+//D
+//E
+//F
+//G
+int getRTTseq();
+int getOpID();
+int getSendBase();
+int getSeqNum();
+int getFileLen(int fd);
+int getWheelPosition();
 int getDataError();
-
-void setDataError();
-
+void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command);
+int getCurrentTimeSlot();
+int getGlobalSenderWait();
+//H
+//I
+void initTimerWheel();
+void initWindow(int times);
+void initPipe(int pipefd[2]);
+void incrementRounds();
+//J
+//K
+//L
+//M
+void mtxLock(pthread_mutex_t * mtx);
+void mtxUnlock(pthread_mutex_t * mtx);
+//N
+//O
+int openFile(char * fileName);
+//P
+//Q
+//R
+int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
+datagram rebuildDatagram(int fd, struct pipeMessage pm, int command);
+int readGlobalTimerStop();
 void resetDataError();
-
+//S
+void startTimer(int packetN, int posInWheel);
+void sentPacket(int packetN, int retransmission);
+void slideWindow();
+void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx);
+void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen);
+struct sockaddr_in createStruct(unsigned short portN);
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection);
+char * stringParser(char * string);
+void sendSignalTimer();
+void setDataError();
+void startRTTsample(int seq);
+//T
+void * timerFunction();
+void tellSenderSendACK(int packetN, short int isFinal);
+void takingRTT();
+//U
+long updateRTTavg(long previousEstimate, long newRTT);
+//V
+//W
+void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
+void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen);
+void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len);
+void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen);
+//X
+//Y
+//Z
 //----------------------------------------------------------------------------------------------------------------------
 
 #endif //DATASTRUCTURES_H

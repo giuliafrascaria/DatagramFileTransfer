@@ -1,6 +1,3 @@
-//prova del branch
-
-//--------------------------------------LIBRERIE-------------------------
 
 #include <sys/socket.h> //socket(), bind()
 #include <stdlib.h> //exit()
@@ -11,15 +8,6 @@
 #include "dataStructures.h"
 #include "server.h"
 
-
-
-//------------------------------------PROTOTIPI---------------------------------
-
-
-
-
-
-//-------------------------------PROGRAMMA-------------------------------
 
 struct details client;
 

@@ -51,6 +51,8 @@ volatile int dataError = 0;
 
 int offset = 200;
 
+//------------------------------------------------------------------------------------------------------------CONNECTION
+
 struct sockaddr_in createStruct(unsigned short portN)
 {
     struct sockaddr_in address;
@@ -126,6 +128,15 @@ int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int so
     }
 }
 
+void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
+{
+    ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
+    if(msgLen == -1)
+    {
+        perror("error in recvfrom");
+    }
+}
+
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
 void initWindow(int times)
@@ -194,23 +205,6 @@ void ackSentPacket(int ackN)
     }
 }
 
-//void printWindow()
-//{
-//    int i;
-//    printf("\n |");
-//    for (i = 0; i < windowSize; i++)
-//    {
-//        if (i == getSendBase() % windowSize)
-//        {
-//            printf(" (%d) |", (selectiveWnd)[i].value);
-//        }
-//        else {
-//            printf(" %d |", (selectiveWnd)[i].value);
-//        }
-//    }
-//    printf("\n");
-//}
-
 void slideWindow()
 {
     int end = 0;
@@ -234,7 +228,7 @@ void slideWindow()
     //printWindow();
 }
 
-//----------------------------------------------------------------------------------------------------------------THREAD
+//--------------------------------------------------------------------------------------SHORT FUNCTIONS TO SIMPLIFY CODE
 
 void createThread(pthread_t * thread, void * function, void * arguments)
 {
@@ -272,6 +266,160 @@ void mtxUnlock(pthread_mutex_t * mtx)
     {
         perror("error on mutex unlock");
     }
+}
+
+int openFile(char * fileName)
+{
+    int fd = open(fileName, O_RDONLY);
+    if (fd == -1)
+    {
+        perror("1: error on open file, retransmission");
+    }
+    return fd;
+}
+
+void closeFile(int fd)
+{
+    if(close(fd) == -1)
+    {
+        perror("error in file close\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection)
+{
+    if (connection == 0) {
+        while (getGlobalSenderWait() == 0) {
+            sleep(1);
+        }
+    }
+    mtxLock(mtx);
+    if(pthread_cond_signal(condition) != 0)
+    {
+        perror("error in cond signal");
+    }
+    mtxUnlock(mtx);
+}
+
+void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
+{
+    if(connection == 0) {
+        mtxLock(&globalSenderWaitMtx);
+        globalSenderWait = 1;
+        mtxUnlock(&globalSenderWaitMtx);
+    }
+    if(pthread_cond_wait(cond, mutex) != 0)
+    {
+        perror("error in cond wait");
+    }
+    if(connection == 0) {
+        mtxLock(&globalSenderWaitMtx);
+        globalSenderWait = 0;
+        mtxUnlock(&globalSenderWaitMtx);
+    }
+}
+
+void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
+{
+    int fileoffset = seqnum-firstnum;
+    if(fileoffset < 0)
+    {
+        fileoffset = MAXINT + fileoffset;
+    }
+    if (firstnum != 0)//-----------------------------------------------è a 0 nella list
+    {
+        mtxLock(&roundsMTX);
+        if ((lseek(file, (fileoffset<<9), SEEK_SET)) == -1) {
+            perror("1: lseek error");
+            printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
+        }
+        mtxUnlock(&roundsMTX);
+    }
+    if (write(file, content, len) == -1)
+    {
+        perror("error in writeOnFile");
+    }
+
+}
+
+void tellSenderSendACK(int packetN, short int isFinal)
+{
+    struct pipeMessage * tellACK = malloc(sizeof(struct pipeMessage));
+    if(tellACK == NULL)
+    {
+        perror("error in malloc (function tellSenderSendACK)");
+    }
+    else
+    {
+        tellACK->seqNum = packetN;
+        tellACK->isFinal = isFinal;
+        writeOnFile(pipeSendACK[1], (char *) tellACK, 0, 0, sizeof(struct pipeMessage));
+    }
+}
+
+int canISend()
+{
+    int seqNum = getSeqNum() % windowSize;
+    int sendBase = getSendBase() % windowSize;
+    int offset;
+    if (seqNum >= sendBase) {
+        if ((seqNum - sendBase) > (WINDOWSIZE - 1)) {
+            return 0;
+        } else {
+            return 1;
+        }
+    } else
+        offset = windowSize + seqNum - sendBase;
+
+    if ((offset) > (WINDOWSIZE - 1)) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+int checkPipe(struct pipeMessage *rtxN, int pipefd)
+{
+    memset(rtxN, 0, sizeof(struct pipeMessage));
+    if(read(pipefd, rtxN, sizeof(struct pipeMessage)) == -1)
+    {
+        if(errno != EAGAIN)
+        {
+            perror("error in pipe read");
+            return -1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+int getFileLen(int fd)
+{
+
+    ssize_t len = lseek(fd, 0L, SEEK_END);
+    if(len == -1){
+        perror("error in lseek");
+    }
+    if(lseek(fd, 0L, SEEK_SET) == -1){
+        perror("error in lseek");
+    }
+    len = len%512;
+    return (int) len;
+}
+
+char * stringParser(char * string)
+{
+    char * sToReturn  = malloc(512);
+    char* start = strrchr(string,'/'); /* Find the last '/' */
+    strcpy(sToReturn, start+1);
+    return sToReturn;
 }
 
 //-----------------------------------------------------------------------------------------------------------------TIMER
@@ -317,20 +465,20 @@ void * timerFunction()
             {
 //                if(readGlobalTimerStop()==1)
 //                {
-                    mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
+                mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
-                    if (currentTimer->isValid)
-                    {
-                        rtxN.seqNum = currentTimer->seqNum;
-                        if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
-                            perror("error in pipe write");
-                        }
-                        currentTimer->isValid = 0;
+                if (currentTimer->isValid)
+                {
+                    rtxN.seqNum = currentTimer->seqNum;
+                    if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
+                        perror("error in pipe write");
                     }
-                    examinedtimer = currentTimer;
-                    currentTimer = examinedtimer->nextTimer;
-                    mtxUnlock(&((selectiveWnd[examinedtimer->seqNum % windowSize]).cellMtx));
-                    memset(&rtxN, 0, sizeof(struct pipeMessage));
+                    currentTimer->isValid = 0;
+                }
+                examinedtimer = currentTimer;
+                currentTimer = examinedtimer->nextTimer;
+                mtxUnlock(&((selectiveWnd[examinedtimer->seqNum % windowSize]).cellMtx));
+                memset(&rtxN, 0, sizeof(struct pipeMessage));
 //                }
 
             }
@@ -400,26 +548,54 @@ void initTimerWheel()
     }
 }
 
-int checkPipe(struct pipeMessage *rtxN, int pipefd)
+long updateRTTavg(long previousEstimate, long newRTT)
 {
-    memset(rtxN, 0, sizeof(struct pipeMessage));
-    if(read(pipefd, rtxN, sizeof(struct pipeMessage)) == -1)
-    {
-        if(errno != EAGAIN)
-        {
-            perror("error in pipe read");
-            return -1;
-        }
-        else
-        {
-            return 0;
-        }
+
+    long RTO, RTTVAR, SRTT;
+    long R = newRTT;
+    //costante data dallo standard, k = 4
+
+    RTTVAR = R>>1;
+    RTTVAR = RTTVAR + (RTTVAR>>3) + (labs( newRTT - previousEstimate)>>3);
+    SRTT = newRTT - (newRTT>>2) + (previousEstimate>>2);
+    RTO = SRTT + (RTTVAR<<2);
+    return RTO;
+}
+
+void takingRTT()
+{
+    mtxLock(&timemtx);
+    clock_gettime(CLOCK_MONOTONIC, &tend);
+    currentRTT.RTT = tend.tv_nsec - currentRTT.timestamp ;
+    currentRTT.previousEstimate = updateRTTavg(currentRTT.previousEstimate, currentRTT.RTT);
+    mtxUnlock(&timemtx);
+}
+
+void startRTTsample(int seq)
+{
+    mtxLock(&timemtx);
+    if (currentRTT.RTT != 0) {
+
+        currentRTT.seqNum = seq;
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
+        currentRTT.timestamp = tstart.tv_nsec;
+        currentRTT.RTT = 0;
     }
-    else
+    mtxUnlock(&timemtx);
+}
+
+void sendSignalTimer()
+{
+    mtxLock(&syncMTX);
+    globalTimerStop = 1;
+    mtxUnlock(&syncMTX);
+    if(pthread_cond_signal(&condTimerSleep) != 0)
     {
-        return 1;
+        perror("error in cond_signal timer");
     }
 }
+
+//----------------------------------------------------------------------------------------------------------SEND PACKETS
 
 void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, struct datagram_t * sndPacket, int rtx)
 {
@@ -442,6 +618,147 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         exit(EXIT_FAILURE);
     }
 }
+
+void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, int command)
+{
+    int finish = 0;
+    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
+    if(pm == NULL)
+        perror("error in malloc");
+
+    handshake * ACK ;
+    while(finish != -1)
+    {
+        if (checkPipe(pm, pipeSendACK[0]) == 1)
+        {
+            ACK = malloc(sizeof(handshake));
+
+            if (ACK == NULL)
+                perror("error in malloc");
+            else {
+                finish = pm->isFinal;
+                if (finish != -2) {
+                    if (finish == 1) {
+//                        printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
+                    }
+                    ACK->isFinal = pm->isFinal;
+                    ACK->sequenceNum = pm->seqNum;
+                    sendACK(socketfd, ACK, servAddr, servLen);
+                }
+                else
+                {
+                    setDataError();
+                    finish = -1;
+                    printf("exit_failure (sender)\n");
+                }
+            }
+            memset(pm, 0, sizeof(struct pipeMessage));
+        }
+        if(finish != -1 && !getDataError())
+        {
+            if (checkPipe(pm, pipeFd[0]) == 1)
+            {
+                if(command == 0 || command == 2)
+                {
+                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
+//                    printf("ritrasmetto pacchetto iniziale di list o pull\n");
+                }
+                else if(command == 1 && pm->seqNum == packet.seqNum)
+                {
+                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
+//                    printf("ritrasmetto pacchetto iniziale di push\n");
+                }
+                else
+                {
+                    datagram packetRTX = rebuildDatagram(0 , *pm, command);
+                    sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
+                    memset(pm, 0, sizeof(struct pipeMessage));
+//                    printf("ritrasmetto pacchetto di dati push\n");
+                }
+
+            }
+        }
+        if(getDataError()){
+            finish = -1;
+            printf("exit_failure (sender)\n");
+        }
+    }
+}
+
+void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
+{
+    int finish = 0;
+    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
+    if(pm == NULL)
+        perror("error in malloc");
+
+    while(finish != -1)
+    {
+        if (checkPipe(pm, pipeSendACK[0]) == 1)
+        {
+            finish = -1;
+            free(pm);
+        }
+        else if (checkPipe(pm, pipeFd[0]) == 1)
+        {
+            //datagram packetRTX = rebuildDatagram(*pm);
+            sendDatagram(socketfd, servAddr, servLen, &packet, 1);
+            memset(pm, 0, sizeof(struct pipeMessage));
+        }
+    }
+}
+
+datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
+{
+    ssize_t readByte;
+    datagram sndPacket;
+
+    sndPacket.command = command;
+
+    if (fd != 0)
+    {
+        mtxLock(&mtxPacketAndDetails);
+        int fileoffset = pm.seqNum - details.firstSeqNum;
+        if(fileoffset < 0)
+        {
+            fileoffset = MAXINT + fileoffset;
+        }
+
+        if (lseek(fd, (fileoffset<<9), SEEK_SET) == -1)
+        {
+            perror("errore in lseek");
+        }
+        sndPacket.ackSeqNum = details.remoteSeq;
+        mtxUnlock(&mtxPacketAndDetails);
+        readByte = read(fd, sndPacket.content, 512);
+        if (readByte == -1) {
+            perror("error in read");
+        }
+        if (readByte == 0) {
+            sndPacket.isFinal = -1;
+        }
+        if (readByte < 512 && readByte > 0) {
+            sndPacket.isFinal = 1;
+            sndPacket.packetLen = readByte;
+        }
+        if (readByte == 512) {
+            sndPacket.isFinal = 0;
+            sndPacket.packetLen = readByte;
+        }
+    }
+    else
+    {
+        sndPacket.isFinal = 1;
+    }
+
+
+    sndPacket.seqNum = pm.seqNum;
+    sndPacket.opID = getOpID();
+
+    return sndPacket;
+}
+
+//-------------------------------------------------------------------------------------------------------RECEIVE PACKETS
 
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
 {
@@ -486,75 +803,6 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
     }
 
     return isFinal;
-}
-
-void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address, socklen_t *slen)
-{
-    ssize_t msgLen = recvfrom(mainSocket, (char *) ACK, sizeof(handshake), 0, address, slen);
-    if(msgLen == -1)
-    {
-        perror("error in recvfrom");
-    }
-}
-
-int openFile(char * fileName)
-{
-    int fd = open(fileName, O_RDONLY);
-    if (fd == -1)
-    {
-        perror("1: error on open file, retransmission");
-    }
-    return fd;
-}
-
-void closeFile(int fd)
-{
-    if(close(fd) == -1)
-    {
-        perror("error in file close\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection)
-{
-    if (connection == 0) {
-        while (getGlobalSenderWait() == 0) {
-            sleep(1);
-        }
-    }
-    mtxLock(mtx);
-    if(pthread_cond_signal(condition) != 0)
-    {
-        perror("error in cond signal");
-    }
-    mtxUnlock(mtx);
-}
-
-void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
-{
-    if(connection == 0) {
-        mtxLock(&globalSenderWaitMtx);
-        globalSenderWait = 1;
-        mtxUnlock(&globalSenderWaitMtx);
-    }
-    if(pthread_cond_wait(cond, mutex) != 0)
-    {
-        perror("error in cond wait");
-    }
-    if(connection == 0) {
-        mtxLock(&globalSenderWaitMtx);
-        globalSenderWait = 0;
-        mtxUnlock(&globalSenderWaitMtx);
-    }
-}
-
-int getGlobalSenderWait()
-{
-    mtxLock(&globalSenderWaitMtx);
-    int r = globalSenderWait;
-    mtxUnlock(&globalSenderWaitMtx);
-    return r;
 }
 
 void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
@@ -661,205 +909,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
 
 }
 
-void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
-{
-    int fileoffset = seqnum-firstnum;
-    if(fileoffset < 0)
-    {
-        fileoffset = MAXINT + fileoffset;
-    }
-    if (firstnum != 0)//-----------------------------------------------è a 0 nella list
-    {
-        mtxLock(&roundsMTX);
-        if ((lseek(file, (fileoffset<<9), SEEK_SET)) == -1) {
-            perror("1: lseek error");
-            printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
-        }
-        mtxUnlock(&roundsMTX);
-    }
-    if (write(file, content, len) == -1)
-    {
-        perror("error in writeOnFile");
-    }
-
-}
-
-void tellSenderSendACK(int packetN, short int isFinal)
-{
-    struct pipeMessage * tellACK = malloc(sizeof(struct pipeMessage));
-    if(tellACK == NULL)
-    {
-        perror("error in malloc (function tellSenderSendACK)");
-    }
-    else
-    {
-        tellACK->seqNum = packetN;
-        tellACK->isFinal = isFinal;
-        writeOnFile(pipeSendACK[1], (char *) tellACK, 0, 0, sizeof(struct pipeMessage));
-    }
-}
-
-void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen, int command)
-{
-    int finish = 0;
-    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
-    if(pm == NULL)
-        perror("error in malloc");
-
-    handshake * ACK ;
-    while(finish != -1)
-    {
-        if (checkPipe(pm, pipeSendACK[0]) == 1)
-        {
-            ACK = malloc(sizeof(handshake));
-
-            if (ACK == NULL)
-                perror("error in malloc");
-            else {
-                finish = pm->isFinal;
-                if (finish != -2) {
-                    if (finish == 1) {
-//                        printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
-                    }
-                    ACK->isFinal = pm->isFinal;
-                    ACK->sequenceNum = pm->seqNum;
-                    sendACK(socketfd, ACK, servAddr, servLen);
-                }
-                else
-                {
-                    setDataError();
-                    finish = -1;
-                    printf("exit_failure (sender)\n");
-                }
-            }
-            memset(pm, 0, sizeof(struct pipeMessage));
-        }
-        if(finish != -1 && !getDataError())
-        {
-            if (checkPipe(pm, pipeFd[0]) == 1)
-            {
-                if(command == 0 || command == 2)
-                {
-                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
-//                    printf("ritrasmetto pacchetto iniziale di list o pull\n");
-                }
-                else if(command == 1 && pm->seqNum == packet.seqNum)
-                {
-                    sendDatagram(socketfd, servAddr, servLen, &packet, 1);
-//                    printf("ritrasmetto pacchetto iniziale di push\n");
-                }
-                else
-                {
-                    datagram packetRTX = rebuildDatagram(0 , *pm, command);
-                    sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
-                    memset(pm, 0, sizeof(struct pipeMessage));
-//                    printf("ritrasmetto pacchetto di dati push\n");
-                }
-
-            }
-        }
-        if(getDataError()){
-            finish = -1;
-            printf("exit_failure (sender)\n");
-        }
-    }
-}
-
-datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
-{
-    ssize_t readByte;
-    datagram sndPacket;
-
-    sndPacket.command = command;
-
-    if (fd != 0)
-    {
-        mtxLock(&mtxPacketAndDetails);
-        int fileoffset = pm.seqNum - details.firstSeqNum;
-        if(fileoffset < 0)
-        {
-            fileoffset = MAXINT + fileoffset;
-        }
-
-        if (lseek(fd, (fileoffset<<9), SEEK_SET) == -1)
-        {
-            perror("errore in lseek");
-        }
-        sndPacket.ackSeqNum = details.remoteSeq;
-        mtxUnlock(&mtxPacketAndDetails);
-        readByte = read(fd, sndPacket.content, 512);
-        if (readByte == -1) {
-            perror("error in read");
-        }
-        if (readByte == 0) {
-            sndPacket.isFinal = -1;
-        }
-        if (readByte < 512 && readByte > 0) {
-            sndPacket.isFinal = 1;
-            sndPacket.packetLen = readByte;
-        }
-        if (readByte == 512) {
-            sndPacket.isFinal = 0;
-            sndPacket.packetLen = readByte;
-        }
-    }
-    else
-    {
-        sndPacket.isFinal = 1;
-    }
-
-
-    sndPacket.seqNum = pm.seqNum;
-    sndPacket.opID = getOpID();
-
-    return sndPacket;
-}
-
-int getFileLen(int fd)
-{
-
-    ssize_t len = lseek(fd, 0L, SEEK_END);
-    if(len == -1){
-        perror("error in lseek");
-    }
-    if(lseek(fd, 0L, SEEK_SET) == -1){
-        perror("error in lseek");
-    }
-    len = len%512;
-    return (int) len;
-}
-
-char * stringParser(char * string)
-{
-    char * sToReturn  = malloc(512);
-    char* start = strrchr(string,'/'); /* Find the last '/' */
-    strcpy(sToReturn, start+1);
-    return sToReturn;
-}
-
-void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
-{
-    int finish = 0;
-    struct pipeMessage * pm = malloc(sizeof(struct pipeMessage));
-    if(pm == NULL)
-        perror("error in malloc");
-
-    while(finish != -1)
-    {
-        if (checkPipe(pm, pipeSendACK[0]) == 1)
-        {
-            finish = -1;
-            free(pm);
-        }
-        else if (checkPipe(pm, pipeFd[0]) == 1)
-        {
-            //datagram packetRTX = rebuildDatagram(*pm);
-            sendDatagram(socketfd, servAddr, servLen, &packet, 1);
-            memset(pm, 0, sizeof(struct pipeMessage));
-        }
-    }
-}
-
 void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     while(receiveACK(socketfd, (struct sockaddr *) servAddr, &servLen) == 0){}
@@ -870,15 +919,14 @@ void waitForFirstPacketListener(int socketfd, struct sockaddr_in * servAddr, soc
     tellSenderSendACK(ack.seqNum, ack.isFinal);
 }
 
-void sendSignalTimer()
+//-----------------------------------------------------------------------------------------------MANAGE GLOBAL VARIABLES
+
+int getGlobalSenderWait()
 {
-    mtxLock(&syncMTX);
-    globalTimerStop = 1;
-    mtxUnlock(&syncMTX);
-    if(pthread_cond_signal(&condTimerSleep) != 0)
-    {
-        perror("error in cond_signal timer");
-    }
+    mtxLock(&globalSenderWaitMtx);
+    int r = globalSenderWait;
+    mtxUnlock(&globalSenderWaitMtx);
+    return r;
 }
 
 int getOpID()
@@ -924,49 +972,6 @@ void incrementRounds()
     mtxUnlock(&roundsMTX);
 }
 
-//int getRounds()
-//{
-//    mtxLock(&roundsMTX);
-//    int r = roundsSender;
-//    mtxUnlock(&roundsMTX);
-//    return r;
-//}
-
-int canISend()
-{
-    int seqNum = getSeqNum() % windowSize;
-    int sendBase = getSendBase() % windowSize;
-    int offset;
-    if (seqNum >= sendBase) {
-        if ((seqNum - sendBase) > (WINDOWSIZE - 1)) {
-            return 0;
-        } else {
-            return 1;
-        }
-    } else
-        offset = windowSize + seqNum - sendBase;
-
-    if ((offset) > (WINDOWSIZE - 1)) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
-//int canISend2()
-//{
-//    int seqNum = getSeqNum() ;
-//    int sendBase = getSendBase() ;
-//    if((seqNum-sendBase) > (WINDOWSIZE-1))
-//    {
-//        return 0;
-//    }
-//    else {
-////        printf("offset = %d\n", seqNum- sendBase);
-//        return 1;
-//    }
-//}
-
 void setDataError()
 {
     mtxLock(&syncMTX);
@@ -989,42 +994,6 @@ void resetDataError()
     mtxUnlock(&syncMTX);
 }
 
-long updateRTTavg(long previousEstimate, long newRTT)
-{
-
-    long RTO, RTTVAR, SRTT;
-    long R = newRTT;
-    //costante data dallo standard, k = 4
-
-    RTTVAR = R>>1;
-    RTTVAR = RTTVAR + (RTTVAR>>3) + (labs( newRTT - previousEstimate)>>3);
-    SRTT = newRTT - (newRTT>>2) + (previousEstimate>>2);
-    RTO = SRTT + (RTTVAR<<2);
-    return RTO;
-}
-
-void takingRTT()
-{
-    mtxLock(&timemtx);
-    clock_gettime(CLOCK_MONOTONIC, &tend);
-    currentRTT.RTT = tend.tv_nsec - currentRTT.timestamp ;
-    currentRTT.previousEstimate = updateRTTavg(currentRTT.previousEstimate, currentRTT.RTT);
-    mtxUnlock(&timemtx);
-}
-
-void startRTTsample(int seq)
-{
-    mtxLock(&timemtx);
-    if (currentRTT.RTT != 0) {
-
-        currentRTT.seqNum = seq;
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
-        currentRTT.timestamp = tstart.tv_nsec;
-        currentRTT.RTT = 0;
-    }
-    mtxUnlock(&timemtx);
-}
-
 int getRTTseq()
 {
     mtxLock(&timemtx);
@@ -1032,3 +1001,7 @@ int getRTTseq()
     mtxUnlock(&timemtx);
     return rttseq;
 }
+
+//-----------------------------------------------------------------------------------------------------------------FINE
+
+
