@@ -64,7 +64,6 @@ int main() {
         {
             printf("*----------------------------*\n un client vorrebbe connettersi\n*----------------------------*\n\n\n");
             listenFunction(mainSocket, &client, &SYN);
-            printf("il figlio è pronto a servire il client\n");
         }
         //if I am the parent process, I continue waiting for connections on this port
     }

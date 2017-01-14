@@ -49,11 +49,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 2000;
-
-//------------------------------------------------------------------------------------------------------START CONNECTION
-
-//---------------------------------------------------------------------------------------------------------CREATE SOCKET
+int offset = 200;
 
 struct sockaddr_in createStruct(unsigned short portN)
 {
@@ -64,8 +60,9 @@ struct sockaddr_in createStruct(unsigned short portN)
 
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
-    //address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_addr.s_addr = inet_addr("10.220.119.230");
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    printf("porta : %d\n", address.sin_port );
+    printf("address : %d\n", address.sin_addr.s_addr );
 
     return address;
 }
@@ -93,26 +90,20 @@ int createSocket()
 
 int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK)
 {
-    char * buffer = malloc(sizeof(datagram));
-    if(buffer == NULL) {
-        perror("error in malloc buffer");
+    ssize_t res;
+    res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
+
+    if((res == -1) && (errno != EAGAIN))
+    {
         return -1;
     }
-    else {
-        ssize_t res;
-        res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
-        if(res == sizeof(handshake)) {
-            memcpy(ACK, buffer, sizeof(handshake));
-            return 1;
-        }
-        else if ((res == -1) && (errno != EAGAIN))
-            return -1;
-        else if(res == sizeof(datagram)) {
-            return 2;
-        }
-        else {
-            return 0;
-        }
+    else if(res > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }
 
@@ -159,8 +150,6 @@ void initWindow(int times)
         (selectiveWnd[i].packetTimer).nextTimer = NULL;
         mtxUnlock(&(selectiveWnd[i].cellMtx));
     }
-
-    printf("inizializzo ruota della selective\n");
 }
 
 void sentPacket(int packetN, int retransmission)
@@ -169,7 +158,6 @@ void sentPacket(int packetN, int retransmission)
 
     (selectiveWnd[packetN % windowSize]).value = 1;
     ((selectiveWnd[packetN % windowSize]).packetTimer).seqNum = packetN;
-    //printf("updated selective repeat\n");
 
     int pos = getWheelPosition();
 
@@ -202,7 +190,6 @@ void ackSentPacket(int ackN)
         slideWindow();
     }
     else {
-        //printf("mi hai ackato qualcosa che non ho mai inviato, %d - valore %d\n", ackN, (selectiveWnd[ackN % windowSize]).value);
         mtxUnlock(&((selectiveWnd[ackN % windowSize]).cellMtx));
     }
 }
@@ -240,7 +227,6 @@ void slideWindow()
             details.sendBase = details.sendBase + 1;
             mtxUnlock(&mtxPacketAndDetails);
             mtxLock(&((selectiveWnd[getSendBase()% windowSize]).cellMtx));
-            //printf("mando avanti sendBase, %d\n", details.sendBase);
         }
         end = 1;
         mtxUnlock(&((selectiveWnd[getSendBase() % windowSize]).cellMtx));
@@ -256,7 +242,6 @@ void createThread(pthread_t * thread, void * function, void * arguments)
     {
         perror("error in pthread_create");
     }
-    //printf("thread creato\n");
 }
 
 void initPipe(int pipefd[2])
@@ -293,7 +278,6 @@ void mtxUnlock(pthread_mutex_t * mtx)
 
 void * timerFunction()
 {
-    printf("timer thread attivato\n\n");
     int i = 0;
 
 
@@ -338,14 +322,11 @@ void * timerFunction()
                     if (currentTimer->isValid)
                     {
                         rtxN.seqNum = currentTimer->seqNum;
-                        printf("dico di ritrasmettere (isValid = 1) %d\n", currentTimer->seqNum);
                         if (write(pipeFd[1], &rtxN, sizeof(struct pipeMessage)) == -1) {
                             perror("error in pipe write");
                         }
                         currentTimer->isValid = 0;
                     }
-                    //printf("|%d, %d|", currentTimer->seqNum, currentTimer->isValid);
-
                     examinedtimer = currentTimer;
                     currentTimer = examinedtimer->nextTimer;
                     mtxUnlock(&((selectiveWnd[examinedtimer->seqNum % windowSize]).cellMtx));
@@ -353,8 +334,6 @@ void * timerFunction()
 //                }
 
             }
-
-            //printf("clocktick\n");
             clockTick();
             if (usleep((useconds_t) nanoSleep) == -1) {
                 perror("error on usleep");
@@ -376,7 +355,6 @@ void clockTick()
     mtxLock(&currentTSMTX);
 
     currentTimeSlot = (currentTimeSlot + 1) % timerSize;
-//    printf("%d\n", currentTimeSlot);
 
     mtxUnlock(&currentTSMTX);
 }
@@ -388,7 +366,6 @@ int getWheelPosition()
     int actualOffset = (int) (currentRTT.previousEstimate / (nanoSleep*1000));
     int maxoffset = MAX(offset, actualOffset);
     int pos = (currentTimeSlot + maxoffset) % timerSize;
-    printf("timer will be set in position %d since max offset is %d\n\n", pos, maxoffset);
     mtxUnlock(&currentTSMTX);
     return(pos);
 }
@@ -413,17 +390,14 @@ void startTimer(int packetN, int posInWheel)
     (timerWheel[posInWheel]).nextTimer = &((selectiveWnd[(packetN)%(windowSize)]).packetTimer);
 
     mtxUnlock(&headtimerMTX);
-    //printf("indirizzo del timer : %p\n", (timerWheel[posInWheel]).nextTimer);
 }
 
 void initTimerWheel()
 {
-    //printf("inizializzo ruota del timer\n");
     for(int i = 0; i < timerSize; i++)
     {
         timerWheel[i].nextTimer = NULL;
     }
-    //printf("inizializzazione terminata\n\n");
 }
 
 int checkPipe(struct pipeMessage *rtxN, int pipefd)
@@ -443,7 +417,6 @@ int checkPipe(struct pipeMessage *rtxN, int pipefd)
     }
     else
     {
-        //printf("\n\nho trovato un rtxN\n\n");
         return 1;
     }
 }
@@ -457,7 +430,6 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
     }
 
     startRTTsample(sndPacket->seqNum);
-    //printf("inviato pacchetto con numero di sequenza %u\n", sndPacket->seqNum);
 }
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
@@ -469,7 +441,6 @@ void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, sockle
         perror("error in sending data\n");
         exit(EXIT_FAILURE);
     }
-    //printf("sent ACK number %d\n", ACK->sequenceNum);
 }
 
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
@@ -503,14 +474,11 @@ int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen)
                 {
                     takingRTT();
                 }
-                //printf("ricevuto ack con numero di sequenza %d\n", ACK->sequenceNum);
                 free(ACK);
             }
             else
             {
-                //printf("ho ricevuto un datagramma invece che un ack, mando l'ack\n");
                 datagram * duplicatePacket;
-
                 duplicatePacket = (datagram *) buffer;
                 tellSenderSendACK(duplicatePacket->seqNum, duplicatePacket->isFinal);
             }
@@ -531,7 +499,6 @@ void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address
 
 int openFile(char * fileName)
 {
-    printf("sto aprendo il file : %s\n", fileName);
     int fd = open(fileName, O_RDONLY);
     if (fd == -1)
     {
@@ -551,12 +518,9 @@ void closeFile(int fd)
 
 void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int connection)
 {
-    if (connection == 0)
-    {
-        while (getGlobalSenderWait() == 0)
-        {
+    if (connection == 0) {
+        while (getGlobalSenderWait() == 0) {
             sleep(1);
-            printf("globalsenderwait = %d\n", getGlobalSenderWait());
         }
     }
     mtxLock(mtx);
@@ -569,19 +533,16 @@ void sendSignalThread(pthread_mutex_t * mtx, pthread_cond_t * condition, int con
 
 void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection)
 {
-    if(connection == 0)
-    {
+    if(connection == 0) {
         mtxLock(&globalSenderWaitMtx);
         globalSenderWait = 1;
         mtxUnlock(&globalSenderWaitMtx);
     }
-    printf("\n\nMI METTO IN COND WAIT\n");
     if(pthread_cond_wait(cond, mutex) != 0)
     {
         perror("error in cond wait");
     }
-    if(connection == 0)
-    {
+    if(connection == 0) {
         mtxLock(&globalSenderWaitMtx);
         globalSenderWait = 0;
         mtxUnlock(&globalSenderWaitMtx);
@@ -611,7 +572,7 @@ void waitForAckCycle(int socket, struct sockaddr * address, socklen_t *slen)
     if(exit == 0 && !getDataError())
         tellSenderSendACK(0, -1);
     else
-        printf("sono il listener ed esco con un errore");
+        printf("error");
 }
 
 void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int fd, int command)
@@ -619,17 +580,9 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
     int isFinal = 0;
     datagram packet;
     int firstPacket;
-//    if(command == 2) {
-//        mtxLock(&mtxPacketAndDetails);
-//        firstPacket = details.firstSeqNum + 1;//        lo passo a writeonfile insieme al pacchetto in modo da ricostruire
-//        mtxUnlock(&mtxPacketAndDetails);
-//    }
-//    else {
-        mtxLock(&mtxPacketAndDetails);
-        firstPacket = details.firstSeqNum;
-        mtxUnlock(&mtxPacketAndDetails);
-//    }
-    printf("numero pacchetto iniziale %d\n", firstPacket);
+    mtxLock(&mtxPacketAndDetails);
+    firstPacket = details.firstSeqNum;
+    mtxUnlock(&mtxPacketAndDetails);
     int ackreceived = 0;
     int alreadyDone = 0;
 
@@ -643,7 +596,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     ack.isFinal = 100;
                     ack.seqNum = 100;
                     tellSenderSendACK(ack.seqNum, ack.isFinal);
-                    printf("ritrasmetto primo pacchetto\n");
                 }
                 else
                 {
@@ -656,7 +608,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                             isFinal = -1;
                             tellSenderSendACK(packet.seqNum, packet.isFinal);
                             memset(&packet, 0, sizeof(datagram));
-                            printf("ricevuto pacchetto finale\n");
                         }
                         else
                         {
@@ -672,10 +623,7 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                             }
                             isFinal = packet.isFinal;
                             //----------------------------------------------------------------
-
-
                             writeOnFile(fd, packet.content, packet.seqNum, firstPacket, (size_t) packet.packetLen);
-                            //printf("pacchetto scritto\n");
                             //----------------------------------------------------------------
                             if (command == 0 || command == 2) {
                                 if (!ackreceived) {
@@ -692,7 +640,6 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                             details.remoteSeq = packet.seqNum;
                             mtxUnlock(&mtxPacketAndDetails);
                             tellSenderSendACK(packet.seqNum, packet.isFinal);
-                            //printf("dico di ackare il pacchetto numero %d con isFinal %d\n", packet.seqNum, packet.isFinal);
                             memset(&packet, 0, sizeof(datagram));
                         }
                     }
@@ -700,18 +647,17 @@ void getResponse(int socket, struct sockaddr_in * address, socklen_t *slen, int 
                     {
                         setDataError();
                         isFinal = -1;
-                        printf("eroor\n\n");
+                        printf("error\n\n");
                     }
                 }
             }
         }
-        //int checkSocketDatagram(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, datagram * packet)
     }
 
-    if(!getDataError())
-    {
-        printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
-    }
+//    if(!getDataError())
+//    {
+//        printf("\n\n\nho ricevuto il sommo pacchetto finale\n\n\n");
+//    }
 
 }
 
@@ -722,11 +668,8 @@ void writeOnFile(int file, char * content, int seqnum, int firstnum ,size_t len)
     {
         fileoffset = MAXINT + fileoffset;
     }
-    if(len != 8)
-        //printf("offset = %d, len = %d, seqnum = %d, firstnum = %d\n", fileoffset, (int) len, seqnum, firstnum);
     if (firstnum != 0)//-----------------------------------------------è a 0 nella list
     {
-        //printf("faccio una lseek\n");
         mtxLock(&roundsMTX);
         if ((lseek(file, (fileoffset<<9), SEEK_SET)) == -1) {
             perror("1: lseek error");
@@ -773,11 +716,10 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
             if (ACK == NULL)
                 perror("error in malloc");
             else {
-                //printf("devo mandare un ack con numero di sequenza : %u\n", pm->seqNum);
                 finish = pm->isFinal;
                 if (finish != -2) {
                     if (finish == 1) {
-                        printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
+//                        printf("valore di finish (SENDER) = %u con numero di sequenza %d\n", finish, pm->seqNum);
                     }
                     ACK->isFinal = pm->isFinal;
                     ACK->sequenceNum = pm->seqNum;
@@ -787,7 +729,7 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 {
                     setDataError();
                     finish = -1;
-                    printf("sono uscito per via di un errore (sender)\n");
+                    printf("exit_failure (sender)\n");
                 }
             }
             memset(pm, 0, sizeof(struct pipeMessage));
@@ -799,26 +741,26 @@ void ACKandRTXcycle(int socketfd, struct sockaddr_in * servAddr, socklen_t servL
                 if(command == 0 || command == 2)
                 {
                     sendDatagram(socketfd, servAddr, servLen, &packet, 1);
-                    printf("ritrasmetto pacchetto iniziale di list o pull\n");
+//                    printf("ritrasmetto pacchetto iniziale di list o pull\n");
                 }
                 else if(command == 1 && pm->seqNum == packet.seqNum)
                 {
                     sendDatagram(socketfd, servAddr, servLen, &packet, 1);
-                    printf("ritrasmetto pacchetto iniziale di push\n");
+//                    printf("ritrasmetto pacchetto iniziale di push\n");
                 }
                 else
                 {
                     datagram packetRTX = rebuildDatagram(0 , *pm, command);
                     sendDatagram(socketfd, servAddr, servLen, &packetRTX, 1);
                     memset(pm, 0, sizeof(struct pipeMessage));
-                    printf("ritrasmetto pacchetto di dati push\n");
+//                    printf("ritrasmetto pacchetto di dati push\n");
                 }
 
             }
         }
         if(getDataError()){
             finish = -1;
-            printf("sono uscito per via di un errore (sender)\n");
+            printf("exit_failure (sender)\n");
         }
     }
 }
@@ -839,7 +781,6 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
             fileoffset = MAXINT + fileoffset;
         }
 
-//        printf("fileOffset = %d, getRounds = %d, pm.seqNum = %d, firstNum = %d\n", fileoffset, getRounds(), pm.seqNum, details.firstSeqNum);
         if (lseek(fd, (fileoffset<<9), SEEK_SET) == -1)
         {
             perror("errore in lseek");
@@ -852,7 +793,6 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
         }
         if (readByte == 0) {
             sndPacket.isFinal = -1;
-//            printf("invio la ritrasmissione del pacchetto finale\n");
         }
         if (readByte < 512 && readByte > 0) {
             sndPacket.isFinal = 1;
@@ -862,7 +802,6 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
             sndPacket.isFinal = 0;
             sndPacket.packetLen = readByte;
         }
-//        printf("ho fatto il rebuild con readByte = %d del pacchetto %d\n", (int) readByte, pm.seqNum);
     }
     else
     {
@@ -871,7 +810,6 @@ datagram rebuildDatagram(int fd, struct pipeMessage pm, int command)
 
 
     sndPacket.seqNum = pm.seqNum;
-//    printf("ritrasmetto2 %d\n", pm.seqNum);
     sndPacket.opID = getOpID();
 
     return sndPacket;
@@ -888,7 +826,6 @@ int getFileLen(int fd)
         perror("error in lseek");
     }
     len = len%512;
-    printf("ho calcolato la grandezza del file\n");
     return (int) len;
 }
 
@@ -919,7 +856,6 @@ void waitForFirstPacketSender(int socketfd, struct sockaddr_in * servAddr, sockl
             //datagram packetRTX = rebuildDatagram(*pm);
             sendDatagram(socketfd, servAddr, servLen, &packet, 1);
             memset(pm, 0, sizeof(struct pipeMessage));
-            printf("\n\nritrasmetto3\n");
         }
     }
 }
@@ -943,7 +879,6 @@ void sendSignalTimer()
     {
         perror("error in cond_signal timer");
     }
-    //printf("segnale mandato\n");
 }
 
 int getOpID()
@@ -1006,7 +941,6 @@ int canISend()
         if ((seqNum - sendBase) > (WINDOWSIZE - 1)) {
             return 0;
         } else {
-//            printf("offset = %d\n", seqNum - sendBase);
             return 1;
         }
     } else
@@ -1015,7 +949,6 @@ int canISend()
     if ((offset) > (WINDOWSIZE - 1)) {
         return 0;
     } else {
-//        printf("offset = %d\n", offset);
         return 1;
     }
 }
@@ -1058,7 +991,6 @@ void resetDataError()
 
 long updateRTTavg(long previousEstimate, long newRTT)
 {
-    //printf("provo ad aggiornare media esponenziale del RTT, prima del calcolo: %ld\n", previousEstimate);
 
     long RTO, RTTVAR, SRTT;
     long R = newRTT;
@@ -1068,36 +1000,16 @@ long updateRTTavg(long previousEstimate, long newRTT)
     RTTVAR = RTTVAR + (RTTVAR>>3) + (labs( newRTT - previousEstimate)>>3);
     SRTT = newRTT - (newRTT>>2) + (previousEstimate>>2);
     RTO = SRTT + (RTTVAR<<2);
-
-    //printf("dopo il calcolo: %ld\n", RTO);
-
     return RTO;
 }
 
 void takingRTT()
 {
-    //if (ackN == currentRTT->seqNum)
-    //{
-    //printf("inizio takingRTT\n");
     mtxLock(&timemtx);
     clock_gettime(CLOCK_MONOTONIC, &tend);
-
-    //printf("currentRTT -> %ld\n" , currentRTT.timestamp);
-    //printf("tend -> %ld \n\n\n",tend.tv_nsec);
-//    printf("currentRTT -> %ld\n" , currentRTT.timestamp);
-//    printf("tend -> %ld \n\n\n",tend.tv_nsec);
-
     currentRTT.RTT = tend.tv_nsec - currentRTT.timestamp ;
-
-    //printf("sampled RTT for packet %d = %ld\n", ackN, currentRTT->RTT);
-
     currentRTT.previousEstimate = updateRTTavg(currentRTT.previousEstimate, currentRTT.RTT);
-
     mtxUnlock(&timemtx);
-
-    //printf("finisco takingRTT\n");
-
-    //}
 }
 
 void startRTTsample(int seq)
@@ -1109,7 +1021,6 @@ void startRTTsample(int seq)
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         currentRTT.timestamp = tstart.tv_nsec;
         currentRTT.RTT = 0;
-//        printf("ho preso il tempo per il pacchetto %d\n", seq);
     }
     mtxUnlock(&timemtx);
 }

@@ -16,8 +16,6 @@
 struct timer
 {
     volatile int seqNum;
-    //double lastRTT;
-    //short int transmitN;
     struct timer * nextTimer;
     volatile int posInWheel;
     volatile short int isValid;
@@ -45,14 +43,12 @@ typedef struct datagram_t
 typedef struct handshake_t
 {
     int ack; //se vale 1 sto ackando il precedente
-    //int windowsize; //lo imposta il server nella risposta, è opID nelle successive transazioni
     int sequenceNum;
     short int isFinal;
 } handshake;
 
 struct details
 {
-    //int windowDimension;
     struct sockaddr_in addr;
     struct sockaddr_in addr2;
     int sockfd;
@@ -63,7 +59,6 @@ struct details
     int mySeq;
     int volatile sendBase;
     int volatile firstSeqNum;
-    //struct selectCell selectiveWnd[];
 };
 
 struct headTimer
@@ -81,7 +76,6 @@ struct RTTsample
 {
     int seqNum;
     long timestamp;
-//    short int isValid;
     long RTT;
     long previousEstimate;
 };
@@ -99,13 +93,6 @@ void clockTick();
 
 
 //--------------------------------------------------------------------------------------------------------RETRANSMISSION
-
-/*
-void retransmissionClient( int pipeRT, datagram * packet, int firstPacket, char * FN);
-
-void retransmissionServer( int pipeRT, datagram * packet, int firstPacket, char * FN);
-*/
-
 int checkPipe(struct pipeMessage *rtxN, int pipefd);
 //------------------------------------------------------------------------------------------------------SELECTIVE REPEAT
 
@@ -115,7 +102,7 @@ void sentPacket(int packetN, int retransmission);
 
 void ackSentPacket(int ackN);
 
-void printWindow();
+//void printWindow();
 
 void slideWindow();
 
@@ -199,7 +186,7 @@ int getCurrentTimeSlot();
 
 void incrementRounds();
 
-int getRounds();
+//int getRounds();
 
 void condWaitSender(pthread_mutex_t * mutex, pthread_cond_t *cond, int connection);
 
@@ -207,7 +194,7 @@ int getGlobalSenderWait();
 
 int canISend();
 
-int canISend2();
+//int canISend2();
 
 int getDataError();
 
