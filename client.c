@@ -237,14 +237,14 @@ void listenCycle()
             }
             else {
                 //prendo un timestamp
-                clock_gettime(CLOCK_MONOTONIC_COARSE, &opStart);
+                clock_gettime(CLOCK_MONOTONIC, &opStart);
 
                 //processing request
                 sendSignalTimer();
                 parseInput(s);
                 timeout = 0;
 
-                clock_gettime(CLOCK_MONOTONIC_COARSE, &opEnd);
+                clock_gettime(CLOCK_MONOTONIC, &opEnd);
 
                 ssize_t len = lseek(fdglob, 0, SEEK_END) + 1;
                 if (!getDataError()) {
