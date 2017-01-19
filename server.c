@@ -9,10 +9,10 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 1000
+#define NANOSLEEP 10000
 
-#define LSDIR "/home/giogge/Documenti/serverHome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/serverHome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -380,17 +380,13 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
         if (sockResult == -1)
         {
             perror("error in socket read");
+
         }
         if (sockResult == 1)
         {
             ackSentPacket(ACK.ack);
             //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
-        }
-        else if(sockResult == 2)
-        {
-            initWindow(1);
-            return 1;
         }
     }
 }

@@ -10,7 +10,7 @@
 
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define NANOSLEEP 10000
+#define NANOSLEEP 1000
 
 #define PULLDIR "/home/giogge/Documenti/clientHome/"
 //#define PULLDIR "/home/dandi/exp/"
@@ -51,6 +51,7 @@ int checkUserInput(char * buffer);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int getFileLen(int fd);
 char * stringParser(char * string);
+void clientExitProc(struct details *details);
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -104,10 +105,20 @@ void clientSendFunction()
             printf("pacchetto inviato \n\n");
             ACKandRTXcycle(details.sockfd, &details.addr, details.Size, packet.command);
         }
-        else
+        else if(packet.command == 1)
         {
             pushSender();
             //sendCycle();
+        }
+        else if(packet.command == 3)
+        {
+            //quit procedure
+            /*printf("entro in clientExit\n");
+            clientExitProc(details);
+
+            pthread_join(listenThread, NULL);
+
+            exit(EXIT_SUCCESS);*/
         }
     }
 }
@@ -381,6 +392,36 @@ void parseInput(char * s)
     else if (strncmp(s, "quit", 4) == 0)//---------------------------------------------------------listener quit command
     {
         printf("quit'\n");
+        /*
+         * printf("Do you want to close the connection? y = yes, n = no \n");
+                int ans = getchar();
+                if ((char) ans == 'y') {
+                    printf("you chose to close the connection\n");
+
+                    printf("inizio la procedura di chiusura\n");
+
+                    packet.command = 3;
+
+                    while(pthread_cond_signal(&condTIM)!= 0)
+                    {
+                        perror("error in pThread signal");
+                        sleep(1);
+                        hmt = nonFatalErr(details, hmt, 1);
+                    }
+                    hmt = 0;
+                    while(pthread_cond_signal(&condGS)!= 0)
+                    {
+                        perror("1: error on cond_signal");
+                        sleep(1);
+                        hmt = nonFatalErr(details, hmt, 1);
+                    }
+                    hmt = 0;
+                    //pthread_mutex_unlock(&mtxGlobalSleep);
+
+                    ACKwait(&privateListenServer);
+
+                    pthread_exit(NULL); //è per dire, non bisogna farlo qui l'exit success
+                }*/
     }
     else if (strncmp(s, "help", 4) == 0)//---------------------------------------------------------listener help command
     {
@@ -892,3 +933,29 @@ void sendCycle()
     printf("inviato il pacchetto definitivo con isFinal = -1 \n");
 }
 */
+void clientExitProc(struct details *details)
+{
+    printf("entro nella funzione \n");
+    datagram packet;
+    packet.isFinal = 1;
+    packet.seqNum = details->mySeq;
+    packet.command = 3;
+
+    //deallocare risorse, chiudere tutti file descriptor
+    //il server deve notificare al thread timer che un processo client è terminato
+    //avviare disconnessione dal server
+
+    printf("mando il messaggio di chiusura connessione\n");
+    if (write(details->sockfd, (char *) &packet, sizeof(datagram)) < 0)
+    {
+        perror("error in write");
+    }
+    printf("sono arrivato dopo della write \n");
+
+    printf("sono arrivato dopo la read \n");
+
+    //IMPLEMENTA RITRASMISSIONE
+
+    //devo aspetare il listener del client per poter uscire
+
+}

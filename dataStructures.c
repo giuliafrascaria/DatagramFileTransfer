@@ -49,7 +49,7 @@ volatile int dataError = 0;
 
 
 
-int offset = 2000;
+int offset = 200;
 
 //------------------------------------------------------------------------------------------------------START CONNECTION
 
@@ -65,7 +65,7 @@ struct sockaddr_in createStruct(unsigned short portN)
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
     //address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_addr.s_addr = inet_addr("10.220.119.230");
+    address.sin_addr.s_addr = inet_addr("95.239.229.223");
 
     return address;
 }
@@ -93,26 +93,20 @@ int createSocket()
 
 int checkSocketAck(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, handshake * ACK)
 {
-    char * buffer = malloc(sizeof(datagram));
-    if(buffer == NULL) {
-        perror("error in malloc buffer");
+    ssize_t res;
+    res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
+
+    if((res == -1) && (errno != EAGAIN))
+    {
         return -1;
     }
-    else {
-        ssize_t res;
-        res = recvfrom(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, &servLen);
-        if(res == sizeof(handshake)) {
-            memcpy(ACK, buffer, sizeof(handshake));
-            return 1;
-        }
-        else if ((res == -1) && (errno != EAGAIN))
-            return -1;
-        else if(res == sizeof(datagram)) {
-            return 2;
-        }
-        else {
-            return 0;
-        }
+    else if(res > 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }
 
