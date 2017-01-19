@@ -108,6 +108,17 @@ void * sendFunction()
             printf("push\n");
             ACKandRTXcycle(details.sockfd2, &details.addr2, details.Size2, 1);
         }
+        else if(packet.command == 3)
+        {
+            datagram TERMPACKET;
+            TERMPACKET.ackSeqNum = packet.seqNum;
+            TERMPACKET.seqNum = getSeqNum();
+            TERMPACKET.isFinal = -1;
+            printf("invio primo datagramma \n");
+            sendDatagram(details.sockfd2, &details.addr2, details.Size2, &TERMPACKET, 0);
+            printf("ci sono ritrasmissioni ?\n");
+            waitForFirstPacketSender(details.sockfd2, &details.addr2, details.Size2);
+        }
     }
 
 }
@@ -186,6 +197,15 @@ void listenCycle()
                     int fd = receiveFirstDatagram(packet.content);
                     tellSenderSendACK(packet.seqNum, packet.isFinal);
                     getResponse(details.sockfd, &(details.addr), &(details.Size), fd, 1);
+                }
+                else if(packet.command == 3)
+                {
+                    printf("aspetto ack\n");
+                    waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
+                    printf("aspetto secondo ack\n");
+                    tellSenderSendACK(100, 100);
+                    printf("fine\n");
+                    exit(EXIT_SUCCESS);
                 }
 
                 timeout = 0;

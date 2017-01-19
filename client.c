@@ -47,11 +47,12 @@ void parseInput(char * s);
 void listPullListener(int fd, int command);
 void initProcessDetails();
 void putDataInPacketPush(datagram * packet, int isFinal);
+void waitForQuitDatagram();
 int checkUserInput(char * buffer);
 int waitForSYNACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd);
 int getFileLen(int fd);
 char * stringParser(char * string);
-void clientExitProc(struct details *details);
+void clientExitProc();
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%    globali    %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -104,12 +105,12 @@ void clientSendFunction()
         else if(packet.command == 3)
         {
             //quit procedure
-            /*printf("entro in clientExit\n");
-            clientExitProc(details);
+            printf("entro in clientExit\n");
+            clientExitProc();
 
             pthread_join(listenThread, NULL);
 
-            exit(EXIT_SUCCESS);*/
+            exit(EXIT_SUCCESS);
         }
     }
 }
@@ -369,36 +370,14 @@ void parseInput(char * s)
     else if (strncmp(s, "quit", 4) == 0)//---------------------------------------------------------listener quit command
     {
         printf("quit'\n");
-        /*
-         * printf("Do you want to close the connection? y = yes, n = no \n");
-                int ans = getchar();
-                if ((char) ans == 'y') {
-                    printf("you chose to close the connection\n");
+        printf("you chose to close the connection\n");
+        printf("inizio la procedura di chiusura\n");
+        packet.command = 3;
+        sendSignalTimer();
+        sendSignalThread(&condMTX2, &senderCond, 0);
 
-                    printf("inizio la procedura di chiusura\n");
-
-                    packet.command = 3;
-
-                    while(pthread_cond_signal(&condTIM)!= 0)
-                    {
-                        perror("error in pThread signal");
-                        sleep(1);
-                        hmt = nonFatalErr(details, hmt, 1);
-                    }
-                    hmt = 0;
-                    while(pthread_cond_signal(&condGS)!= 0)
-                    {
-                        perror("1: error on cond_signal");
-                        sleep(1);
-                        hmt = nonFatalErr(details, hmt, 1);
-                    }
-                    hmt = 0;
-                    //pthread_mutex_unlock(&mtxGlobalSleep);
-
-                    ACKwait(&privateListenServer);
-
-                    pthread_exit(NULL); //è per dire, non bisogna farlo qui l'exit success
-                }*/
+        waitForQuitDatagram();
+        pthread_exit(NULL);
     }
     else if (strncmp(s, "help", 4) == 0)//---------------------------------------------------------listener help command
     {
@@ -559,56 +538,53 @@ void pushSender()
         perror("error in memcpy");
     }
     sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
-    //printWindow();
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
 
-//    while(((getSendBase()%WINDOWSIZE) != ((finalSeq+1)%WINDOWSIZE)) && (thereIsAnError == 0))
-//    {
-        while(isFinal == 0) {
-            while (!canISend() && !getDataError()) {
-                if (checkPipe(&rtx, pipeFd[0]) != 0) {
+    while(isFinal == 0) {
+        while (!canISend() && !getDataError()) {
+            if (checkPipe(&rtx, pipeFd[0]) != 0) {
 //                  retransmission
-                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
-                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
-                }
-            }
-            if (!getDataError()) {
-                if (checkPipe(&rtx, pipeFd[0]) == 0) {
-                    memset(sndPacket.content, 0, 512);
-                    readByte = read(fdglob, sndPacket.content, 512);
-                    if (readByte < 0) {
-                        perror("error in read");
-                    } else if (readByte != 0) {
-                        sndPacket.packetLen = readByte;
-
-                        putDataInPacketPush(&sndPacket, isFinal);
-
-                        if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
-                            incrementRounds();
-                            alreadyDone++;
-                        } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
-                            alreadyDone = 0;
-                        }
-
-                        sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
-                    } else {
-                        isFinal = 1;
-                        finalSeq = getSeqNum() - 1;
-                    }
-
-                } else {
-//                      retransmission
-                        sndPacket = rebuildDatagram(fdglob, rtx, 1);
-                        sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
-                }
-            }
-            else
-            {
-                isFinal = 1;
-                thereIsAnError = 1;
-                printf("exit_failure\n");
+                sndPacket = rebuildDatagram(fdglob, rtx, 1);
+                sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
             }
         }
+        if (!getDataError()) {
+            if (checkPipe(&rtx, pipeFd[0]) == 0) {
+                memset(sndPacket.content, 0, 512);
+                readByte = read(fdglob, sndPacket.content, 512);
+                if (readByte < 0) {
+                    perror("error in read");
+                } else if (readByte != 0) {
+                    sndPacket.packetLen = readByte;
+
+                    putDataInPacketPush(&sndPacket, isFinal);
+
+                    if (sndPacket.seqNum < details.firstSeqNum && alreadyDone == 0) {
+                        incrementRounds();
+                        alreadyDone++;
+                    } else if (packet.seqNum >= details.firstSeqNum && alreadyDone > 0) {
+                        alreadyDone = 0;
+                    }
+
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 0);
+                } else {
+                    isFinal = 1;
+                    finalSeq = getSeqNum() - 1;
+                }
+
+            } else {
+//                      retransmission
+                    sndPacket = rebuildDatagram(fdglob, rtx, 1);
+                    sendDatagram(details.sockfd, &(details.addr), details.Size, &sndPacket, 1);
+            }
+        }
+        else
+        {
+            isFinal = 1;
+            thereIsAnError = 1;
+            printf("exit_failure\n");
+        }
+    }
     if(!thereIsAnError)
     {
         while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
@@ -737,22 +713,50 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 //    printf("ACK finale inviato. Numero di sequenza : %d ackando il pacchetto %d\n", ACK.sequenceNum, ACK.ack);
 }
 
-
-    //deallocare risorse, chiudere tutti file descriptor
-    //il server deve notificare al thread timer che un processo client è terminato
-    //avviare disconnessione dal server
+void clientExitProc()
+{
+    printf("entro nella funzione \n");
+    datagram packet;
+    packet.isFinal = 1;
+    packet.seqNum = getSeqNum();
+    packet.command = 3;
 
     printf("mando il messaggio di chiusura connessione\n");
-    if (write(details->sockfd, (char *) &packet, sizeof(datagram)) < 0)
-    {
-        perror("error in write");
-    }
-    printf("sono arrivato dopo della write \n");
-
+    sendDatagram(details.sockfd, &details.addr, details.Size, &packet, 0);
     printf("sono arrivato dopo la read \n");
+    waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
+    printf("arrivato ack, continuo (sender)\n");
+    handshake TERM;
+    TERM.isFinal = -1;
 
-    //IMPLEMENTA RITRASMISSIONE
+    mtxLock(&mtxPacketAndDetails);
+    TERM.sequenceNum = details.remoteSeq;
+    mtxUnlock(&mtxPacketAndDetails);
 
-    //devo aspetare il listener del client per poter uscire
+    sendACK(details.sockfd, &TERM, &details.addr, details.Size);
+}
 
+void waitForQuitDatagram()
+{
+    datagram termPacket;
+    int isFinal = 0;
+    while(isFinal != -1)
+    {
+        if (checkSocketDatagram(&details.addr2, details.Size2, details.sockfd2, &termPacket) == 1)
+        {
+            if (termPacket.isFinal == -1)
+            {
+                ackSentPacket(termPacket.ackSeqNum);
+
+                mtxLock(&mtxPacketAndDetails);
+                details.remoteSeq = termPacket.seqNum;
+                mtxUnlock(&mtxPacketAndDetails);
+
+                isFinal = -1;
+                tellSenderSendACK(100,100);
+            }
+            else
+                printf("nun era lui \n");
+        }
+    }
 }
