@@ -66,9 +66,6 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 
     createThread(&timerThread, timerFunction, NULL);
     createThread(&senderThread, sendFunction, NULL);
-
-    printf("finita la creazione dei thread\n");
-
     startServerConnection(details, socketfd, message);
 
     listenCycle();
@@ -76,14 +73,7 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 
 void * sendFunction()
 {
-
-    printf("sender thread attivato\n\n");
-//    if(pthread_cond_wait(&secondConnectionCond, &condMTX) != 0)
-//    {
-//        perror("error in cond wait");
-//    }
     condWaitSender(&condMTX, &secondConnectionCond, 1);
-    printf("sono dopo la cond wait\n\n");
     startSecondConnection(&details, details.sockfd2);
     finishHandshake();
 
@@ -93,15 +83,7 @@ void * sendFunction()
         mtxLock(&syncMTX);
         globalTimerStop = 0;
         mtxUnlock(&syncMTX);
-
-//        printf("mi metto in cond wait\n");
-//        if(pthread_cond_wait(&senderCond, &condMTX2) != 0)
-//        {
-//            perror("error in cond wait");
-//        }
         condWaitSender(&condMTX2, &senderCond, 0);
-        printf("sono dopo la seconda cond wait, giunse un pacchetto con comando %d\n\n", packet.command);
-
         //-----------------------------------------------------------------------------------------------------------------
         if(packet.command == 0)
         {
@@ -117,13 +99,13 @@ void * sendFunction()
             mtxLock(&mtxPacketAndDetails);
             details.sendBase = details.mySeq;
             details.firstSeqNum = details.mySeq;
-            printf("\n\nè una pull di %s\n\n", packet.content);
+            printf("pull : %s\n\n", packet.content);
             mtxUnlock(&mtxPacketAndDetails);
 
             sendCycle(2);
         }
         else if(packet.command == 1){
-            printf("è una push\n");
+            printf("push\n");
             ACKandRTXcycle(details.sockfd2, &details.addr2, details.Size2, 1);
         }
     }
@@ -146,15 +128,11 @@ void finishHandshake()
         mtxLock(&syncMTX);
         globalTimerStop = 0;
         mtxUnlock(&syncMTX);
-        printf("fine, sono pronto\n\n");
     }
 }
 
 void listenCycle()
 {
-    printf("inizio il ciclo di ascolto\n");
-
-    //datagram packet;
     //------------------------------------------------------------------------------------------------------------------
     for(;;)
     {
@@ -162,7 +140,7 @@ void listenCycle()
         globalTimerStop = 0;
         mtxUnlock(&syncMTX);
 
-        printf("\nsono il listener e ricomincio il ciclo\n");
+        printf("\nWaiting for commands\n");
         memset(&packet, 0, sizeof(datagram));
         int res = 0;
         int timeout = 0;
@@ -185,7 +163,6 @@ void listenCycle()
             }
             else
             {
-                printf("è arrivata una richiesta : numero di sequenza ricevuto = %u\n", packet.seqNum);
                 resetDataError();
                 sendSignalTimer();
 
@@ -196,14 +173,12 @@ void listenCycle()
 
                 mtxLock(&syncMTX);
                 globalOpID = packet.opID;
-                printf("pacchetto ricevuto opID = %d\n", globalOpID);
                 mtxUnlock(&syncMTX);
 
                 sendSignalThread(&condMTX2, &senderCond, 0);
-                printf("RICHIESTA CON NUMERO DI COMANDO = %d\n\n", packet.command);
+                printf("Request received, command = %d\n\n", packet.command);
                 if(packet.command == 0 || packet.command == 2)
                 {
-                    //waitForFirstPacketListener(details.sockfd, &(details.addr), details.Size);
                     waitForAckCycle(details.sockfd, (struct sockaddr *) &details.addr, &details.Size);
                 }
                 else if (packet.command == 1)
@@ -222,7 +197,6 @@ void listenCycle()
                 exit(EXIT_FAILURE);
             }
         }
-        //arrivo qui quando ho ricevuto cose, chiamo una funzione tipo controllaComando() e sveglia il sender e il timer
     }
 }
 
@@ -240,7 +214,6 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     struct sockaddr_in serverAddress;
     //mi metto su una porta effimera, indicandola con sin_port = 0
     serverAddress = createStruct(0); //create struct with ephemeral port
-    printf("ho creato la struct dedicata\n");
 
     //per il client rimango in ascolto su questa socket
     bindSocket(privateSocket, (struct sockaddr *) &serverAddress, socklen);
@@ -250,7 +223,6 @@ void startServerConnection(struct details * cl, int socketfd, handshake * messag
     mtxUnlock(&mtxPacketAndDetails);
 
     //mando il datagramma ancora senza connettermi
-
     while(readGlobalTimerStop() != 2){}
 
     sendSYNACK(privateSocket, socklen, cl);
@@ -273,7 +245,6 @@ void startSecondConnection(struct details * cl, int socketfd)
     struct sockaddr_in serverAddress;
     //mi metto su una porta effimera, indicandola con sin_port = 0
     serverAddress = createStruct(0); //create struct with ephemeral port
-    printf("ho creato la seconda struct dedicata\n");
     mtxLock(&mtxPacketAndDetails);
     details.addr2 = serverAddress;
     mtxUnlock(&mtxPacketAndDetails);
@@ -295,7 +266,7 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     }
     else if(rcvSequence > 0)
     {
-        printf("ACK ricevuto con numero di sequenza : %d. fine connessione parte 1\n", rcvSequence );
+        printf("ACK received, sequence num : %d. end first connection\n", rcvSequence );
         //avvio il thread listener per connettersi su una nuova socket
         //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
 
@@ -304,12 +275,9 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     }
     else //se ritorna 0 devo ritrasmettere
     {
-        printf("sto ritrasmettendo\n");
-
         sendSYNACK(socketFD, socklen , cl);
         terminateConnection(socketFD, clientAddr, socklen, cl);
     }
-    printf("esco da terminateConnection\n");
 }
 
 int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
@@ -326,7 +294,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
     {
         if(checkPipe(&rtxN, pipeFd[0]))
         {
-            printf("devo ritrasmettere\n");
+            //ritrasmissione
             return 0;
         }
         sockResult = checkSocketAck(clientAddr, slen, socketFD, &ACK);
@@ -337,7 +305,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
         }
         if (sockResult == 1)
         {
-            printf("arrivato ACK del SYN ACK\n");
+            printf("ACK received\n");
 
             mtxLock(&mtxPacketAndDetails);
             details.addr = *clientAddr;
@@ -346,14 +314,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
             details.remoteSeq = ACK.sequenceNum;
             mtxUnlock(&mtxPacketAndDetails);
 
-//          printf("prima di aggiornare\n");
-//          printWindow();
-
             ackSentPacket(ACK.ack);
-
-//          printf("dopo l'aggiornamento\n");
-//          printWindow();
-            //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
         }
     }
@@ -371,11 +332,6 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
     int sockResult;
     for(;;)
     {
-        if(checkPipe(&rtxN, pipeFd[0]))
-        {
-            printf("devo ritrasmettere\n");
-            return 0;
-        }
         sockResult = checkSocketAck(clientAddr, slen, socketFD, &ACK);
         if (sockResult == -1)
         {
@@ -385,8 +341,12 @@ int waitForAck2(int socketFD, struct sockaddr_in * clientAddr)
         if (sockResult == 1)
         {
             ackSentPacket(ACK.ack);
-            //--------------------------------------------INIT GLOBAL DETAILS
             return ACK.sequenceNum;
+        }
+        else if(checkPipe(&rtxN, pipeFd[0]))
+        {
+            //ritrasmissione
+            return 0;
         }
     }
 }
@@ -411,7 +371,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
     sentPacket(SYN_ACK.sequenceNum, 0);
-    printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
+    printf("SYNACK sent : %d\n", SYN_ACK.sequenceNum);
 
 }
 
@@ -427,7 +387,7 @@ void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl)
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
     sentPacket(SYN_ACK.sequenceNum, 0);
-    printf("SYNACK inviato, numero di sequenza : %d\n", SYN_ACK.sequenceNum);
+    printf("second SYNACK sent : %d\n", SYN_ACK.sequenceNum);
 
 }
 
@@ -464,13 +424,12 @@ int ls()
 
                 strcpy(array[count], ent->d_name);
                 count++;
-//                dprintf(fd, "%s\n", ent->d_name);
             }
         }
         closedir (dir);
     }
     else
-        perror ("errore nell'apertura della directory");
+        perror ("error on directory open");
 
     int i, j;
     char * temp;
@@ -508,7 +467,6 @@ int ls()
 
 int receiveFirstDatagram(char * content)
 {
-    printf("sono in receiveFirstDatagram\n");
     int fd;
     char * fileName;
     char *s = malloc(100);
@@ -534,7 +492,7 @@ int receiveFirstDatagram(char * content)
         perror("error in srintf");
     }
 
-    printf("file da aprire: %s\n", fileName);
+    printf("file to open: %s\n", fileName);
 
     if((fd = open(fileName, O_RDWR | O_TRUNC | O_CREAT, 0777)) == -1)
     {
@@ -543,7 +501,7 @@ int receiveFirstDatagram(char * content)
 
     if ((lseek(fd, 0L, SEEK_SET)) == -1)
     {
-        perror("TE LO AVEVO DETTO");
+        perror("error on lseek");
     }
     mtxLock(&mtxPacketAndDetails);
     details.firstSeqNum = packet.seqNum + 1;
@@ -553,9 +511,9 @@ int receiveFirstDatagram(char * content)
 
 void sendCycle(int command)
 {
-    printf("sono il sender del server, sto per fare la list o la pull\n");
     int fd;
     datagram sndPacket;
+    int errorSendDatagram = 0;
 
     if(command == 0)
     {
@@ -588,7 +546,6 @@ void sendCycle(int command)
         int isFinal = 0;
         ssize_t readByte;
         int thereIsAnError = 0;
-
         struct pipeMessage rtx;
         struct pipeMessage finalAck;
 
@@ -607,6 +564,9 @@ void sendCycle(int command)
                     readByte = read(fd, sndPacket.content, 512);
                     if (readByte == -1) {
                         perror("error in file read");
+                        isFinal = 1;
+                        thereIsAnError = 1;
+                        errorSendDatagram = 1;
                     } else if (readByte != 0) {
                         sndPacket.packetLen = readByte;
                         sndPacket.isFinal = (short) isFinal; //mi sa che non serve
@@ -618,7 +578,6 @@ void sendCycle(int command)
                         sndPacket.seqNum = getSeqNum();
 
                         sndPacket.opID = getOpID();
-                        //printf("ho inviato un pacchetto %d\n", sndPacket.seqNum);
                         sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
                     } else {
                         isFinal = 1;
@@ -634,38 +593,39 @@ void sendCycle(int command)
                 thereIsAnError = 1;
             }
         }
-        printf("esco dal ciclo di isFinal == 0\n");
         if (!thereIsAnError) {
             while (getSendBase() % WINDOWSIZE != finalSeq % WINDOWSIZE) {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
-//                    printf("ritrasmetto5\n");
+//                  retansmission
                     sndPacket = rebuildDatagram(fd, rtx, sndPacket.command);
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
                 }
             }
-            printf("sono qui\n");
             memset(sndPacket.content, 0, 512);
             sndPacket.isFinal = -1;
             sndPacket.seqNum = getSeqNum();
             sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
-            printf("inviato il pacchetto definitivo con isFinal = -1 e seq %d \n", sndPacket.seqNum);
+            printf("isFinal = -1 sent : %d \n", sndPacket.seqNum);
             while (checkPipe(&finalAck, pipeSendACK[0]) == 0) {
                 if (checkPipe(&rtx, pipeFd[0]) != 0) {
-                    printf("ritrasmetto5\n");
+                    //ritrasmissione
                     sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 1);
-                    printf("inviato il pacchetto definitivo con isFinal = -1 \n");
+                    printf("isFinal = -1 sent on retrasmission \n");
                 }
             }
-            printf("HO FINITO ESCO DAL CICLO\n");
         }
     }
     else {
+        errorSendDatagram = 1;
+    }
+    if (errorSendDatagram == 1)
+    {
         memset(sndPacket.content, 0, 512);
         sndPacket.isFinal = -2;
         sndPacket.seqNum = getSeqNum();
         sndPacket.opID = getOpID();
         sendDatagram(details.sockfd2, &(details.addr2), details.Size2, &sndPacket, 0);
         setDataError();
-        printf("esco da sendCycle con un errore \n");
+        printf("exit_failure (sendCycle)\n");
     }
 }
