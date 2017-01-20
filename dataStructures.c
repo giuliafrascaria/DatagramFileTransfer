@@ -620,15 +620,11 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
 {
     ssize_t sentData;
-    volatile int diceroll = randomGen();
-
-    if(diceroll >= LOSSPROB)
+    sentData = sendto(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr* ) servAddr, servLen);
+    if(sentData == -1)
     {
-        sentData = sendto(socketfd, (char *) ACK, sizeof(handshake), 0, (struct sockaddr *) servAddr, servLen);
-        if (sentData == -1) {
-            perror("error in sending data\n");
-            exit(EXIT_FAILURE);
-        }
+        perror("error in sending data\n");
+        exit(EXIT_FAILURE);
     }
 }
 
