@@ -11,8 +11,8 @@
 #define NANOSLEEP 10000
 
 
-#define LSDIR "/home/giogge/Documenti/DFThome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/DFThome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -455,8 +455,10 @@ int ls()
         }
         closedir (dir);
     }
-    else
-        perror ("error on directory open");
+    else {
+        perror("error on directory open");
+        return -1;
+    }
 
     int i, j;
     char * temp;
@@ -480,7 +482,6 @@ int ls()
 
     for (int k = 0; k < count; k++)
     {
-        printf("%s\n", array[k]);
         dprintf(fd, "%s\n", array[k]);
     }
     lseek(fd, 0, SEEK_SET);

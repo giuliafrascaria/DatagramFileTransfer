@@ -12,8 +12,8 @@
 #define NANOSLEEP 10000
 
 
-#define PULLDIR "/home/giogge/Documenti/clientHome/"
-//#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/giogge/Documenti/clientHome/"
+#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -223,10 +223,7 @@ void listenCycle()
     {
         perror("error in csv file open");
     }
-    else
-    {
-        fprintf(csv, "dimensione in kb, millisecondi, prob perdita in millesimi\n");
-    }
+
 
     for(;;)
     {
@@ -278,7 +275,11 @@ void listenCycle()
                                    (len) / mseconds + 0.001);
                             printf("----------------------------------------------------------------\n");
                             printf("\n\n");
-                            fprintf(csv, "%d,%ld,%d\n", (int) len, mseconds, LOSSPROB);
+                            printf("%d,%ld,%d\n", (int) len, mseconds, LOSSPROB);
+                            if(fprintf(csv, "%d,%ld,%d\n", (int) len, mseconds, LOSSPROB)<0)
+                                perror("error on fprintf");
+                            else
+                                fflush(csv);
                         } else {
                             printf("\n\n\n----------------------------------------------------------------\n");
                             printf("there was a problem on taking time for this operation\n\n");

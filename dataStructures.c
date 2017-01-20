@@ -463,7 +463,7 @@ void * timerFunction()
             {
 //                if(readGlobalTimerStop()==1)
 //                {
-                printf("gestione ritrasmissioni\n");
+//                printf("gestione ritrasmissioni\n");
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid)
@@ -608,7 +608,7 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
         if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
             perror("datagram send error");
         }
-        printf("rand = %d, pacchetto mandato\n", diceroll);
+//        printf("rand = %d, pacchetto mandato\n", diceroll);
 
         startRTTsample(sndPacket->seqNum);
     }
