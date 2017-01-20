@@ -12,7 +12,8 @@
 #define NANOSLEEP 10000
 
 //#define LSDIR "/home/giogge/Documenti/serverHome/"
-#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/dandi/Downloads/"
+#define LSDIR "/home/dandi/git/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -443,6 +444,7 @@ int ls()
                     perror("error in malloc");
 
                 strcpy(array[count], ent->d_name);
+
                 count++;
             }
         }
@@ -457,7 +459,7 @@ int ls()
         perror("error on malloc temp");
     }
 
-    for(i=0; i < count-2 ; i++){
+    for(i=0; i < count ; i++){
         for(j=i+1; j< count; j++)
         {
             if(strcmp(array[i],array[j]) > 0)
@@ -469,9 +471,11 @@ int ls()
             }
         }
     }
+    printf("\n\n\n");
 
-    for (int k = 0; k < count-2; k++)
+    for (int k = 0; k < count; k++)
     {
+        printf("%s\n", array[k]);
         dprintf(fd, "%s\n", array[k]);
     }
     lseek(fd, 0, SEEK_SET);

@@ -63,6 +63,7 @@ struct sockaddr_in createStruct(unsigned short portN)
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
     address.sin_addr.s_addr = htonl(INADDR_ANY);
+//    address.sin_addr.s_addr  = inet_addr("79.31.43.146");
     printf("porta : %d\n", address.sin_port );
     printf("address : %d\n", address.sin_addr.s_addr );
 
@@ -141,7 +142,10 @@ void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address
 
 void initWindow(int times)
 {
-    memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell));
+    if(memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell))==NULL)
+    {
+        perror("error on memset");
+    }
     int i;
     for(i = 0; i < windowSize; i++)
     {
