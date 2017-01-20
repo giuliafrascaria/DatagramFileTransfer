@@ -463,7 +463,7 @@ void * timerFunction()
             {
 //                if(readGlobalTimerStop()==1)
 //                {
-//                printf("gestione ritrasmissioni\n");
+                //printf("gestione ritrasmissioni\n");
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid)
@@ -608,14 +608,11 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
         if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
             perror("datagram send error");
         }
-//        printf("rand = %d, pacchetto mandato\n", diceroll);
+        //printf("rand = %d, pacchetto mandato\n", diceroll);
 
         startRTTsample(sndPacket->seqNum);
     }
-    else
-    {
-        printf("pacchetto perso\n");
-    }
+
 
 
 }
@@ -1023,7 +1020,10 @@ unsigned int randomGen()
     int seed5 = getSeqNum();
     int seed6 = getOpID();
 
-    unsigned int randomn = (unsigned int) (seed1 + 2*seed2 + seed3 + seed5 + 2*seed6)%1000;
+    int multiplier = (seed1 + getSeqNum())%13;
+    int addend = (seed2 + seed3*8)%7;
+
+    unsigned int randomn = (unsigned int) (addend + multiplier*(seed1 + 2*seed2 + seed3 + seed5 + 2*seed6))%1000;
     return randomn;
 }
 //-----------------------------------------------------------------------------------------------------------------FINE
