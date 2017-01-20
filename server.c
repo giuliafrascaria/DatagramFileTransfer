@@ -7,13 +7,12 @@
 #include <dirent.h>
 #include "server.h"
 
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
+
 #define NANOSLEEP 10000
 
-//#define LSDIR "/home/giogge/Documenti/serverHome/"
+
+#define LSDIR "/home/giogge/Documenti/DFThome/"
 //#define LSDIR "/home/dandi/Downloads/"
-#define LSDIR "/home/dandi/git/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -61,6 +60,9 @@ void listenFunction(int socketfd, struct details * details, handshake * message)
 
     char buffer[100];
     printf("richiesta dal client %s\n\n\n", inet_ntop(AF_INET, &((details->addr).sin_addr), buffer, 100));
+    printf("Received packet from %s, port %d\n",
+                        inet_ntoa(details->addr.sin_addr), ntohs(details->addr.sin_port));
+
 
     initPipe(pipeFd);
     initPipe(pipeSendACK);
@@ -115,9 +117,9 @@ void * sendFunction()
             TERMPACKET.ackSeqNum = packet.seqNum;
             TERMPACKET.seqNum = getSeqNum();
             TERMPACKET.isFinal = -1;
-            printf("invio primo datagramma \n");
+            printf("invio conferma di chiusura connessione\n");
             sendDatagram(details.sockfd2, &details.addr2, details.Size2, &TERMPACKET, 0);
-            printf("ci sono ritrasmissioni ?\n");
+            printf("controllo ritrasmissioni\n");
             waitForFirstPacketSender(details.sockfd2, &details.addr2, details.Size2);
         }
     }
@@ -287,12 +289,15 @@ void terminateConnection(int socketFD, struct sockaddr_in * clientAddr, socklen_
     }
     else if(rcvSequence > 0)
     {
-        printf("ACK received, sequence num : %d. end first connection\n", rcvSequence );
+        //printf("ACK received, sequence num : %d. end first connection\n", rcvSequence );
+
+        printf("Second data stream from %s, port %d\n",
+               inet_ntoa(clientAddr->sin_addr), ntohs(clientAddr->sin_port));
         //avvio il thread listener per connettersi su una nuova socket
         //cond signal e il listener mi manda un secondo SYNACK, chiudendo socket eccetera
 
         sendSignalThread(&condMTX, &secondConnectionCond, 1);
-        //in teoria ora posso connettere la socket
+
     }
     else //se ritorna 0 devo ritrasmettere
     {
@@ -326,7 +331,7 @@ int waitForAck(int socketFD, struct sockaddr_in * clientAddr)
         }
         if (sockResult == 1)
         {
-            printf("ACK received\n");
+            //printf("ACK received\n");
 
             mtxLock(&mtxPacketAndDetails);
             details.addr = *clientAddr;
@@ -392,7 +397,7 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
     sentPacket(SYN_ACK.sequenceNum, 0);
-    printf("SYNACK sent : %d\n", SYN_ACK.sequenceNum);
+    //printf("SYNACK sent : %d\n", SYN_ACK.sequenceNum);
 
 }
 
@@ -408,7 +413,7 @@ void sendSYNACK2(int privateSocket, socklen_t socklen , struct details * cl)
     sendACK(privateSocket, &SYN_ACK, &(cl->addr), socklen);
 
     sentPacket(SYN_ACK.sequenceNum, 0);
-    printf("second SYNACK sent : %d\n", SYN_ACK.sequenceNum);
+    //printf("second SYNACK sent : %d\n", SYN_ACK.sequenceNum);
 
 }
 

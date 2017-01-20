@@ -8,9 +8,9 @@
 //#include <sys/time.h>
 #include "dataStructures.h"
 
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
+
 #define NANOSLEEP 10000
+
 
 #define PULLDIR "/home/giogge/Documenti/clientHome/"
 //#define PULLDIR "/home/dandi/exp/"
@@ -105,7 +105,7 @@ void clientSendFunction()
         else if(packet.command == 3)
         {
             //quit procedure
-            printf("entro in clientExit\n");
+
             clientExitProc();
 
             pthread_join(listenThread, NULL);
@@ -218,7 +218,15 @@ void listenCycle()
         perror("error in fcntl");
     }
 
-
+    FILE * csv = fopen("csvFile.csv", "a+");
+    if(csv == NULL)
+    {
+        perror("error in csv file open");
+    }
+    else
+    {
+        fprintf(csv, "dimensione in kb, millisecondi, prob perdita in millesimi\n");
+    }
 
     for(;;)
     {
@@ -249,14 +257,14 @@ void listenCycle()
             }
             else {
                 //prendo un timestamp
-                clock_gettime(CLOCK_MONOTONIC, &opStart);
+                clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &opStart);
 
                 //processing request
                 sendSignalTimer();
                 parseInput(s);
                 timeout = 0;
 
-                clock_gettime(CLOCK_MONOTONIC, &opEnd);
+                clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &opEnd);
 
                 ssize_t len = lseek(fdglob, 0, SEEK_END) + 1;
                 if (!getDataError()) {
@@ -270,6 +278,7 @@ void listenCycle()
                                    (len) / mseconds + 0.001);
                             printf("----------------------------------------------------------------\n");
                             printf("\n\n");
+                            fprintf(csv, "%d,%ld,%d\n", (int) len, mseconds, LOSSPROB);
                         } else {
                             printf("\n\n\n----------------------------------------------------------------\n");
                             printf("there was a problem on taking time for this operation\n\n");
@@ -369,8 +378,7 @@ void parseInput(char * s)
     }
     else if (strncmp(s, "quit", 4) == 0)//---------------------------------------------------------listener quit command
     {
-        printf("quit'\n");
-        printf("you chose to close the connection\n");
+
         printf("inizio la procedura di chiusura\n");
         packet.command = 3;
         sendSignalTimer();
@@ -715,7 +723,6 @@ void send_ACK(struct sockaddr_in * servAddr, socklen_t servLen, int socketfd, in
 
 void clientExitProc()
 {
-    printf("entro nella funzione \n");
     datagram packet;
     packet.isFinal = 1;
     packet.seqNum = getSeqNum();
@@ -723,9 +730,9 @@ void clientExitProc()
 
     printf("mando il messaggio di chiusura connessione\n");
     sendDatagram(details.sockfd, &details.addr, details.Size, &packet, 0);
-    printf("sono arrivato dopo la read \n");
+
     waitForFirstPacketSender(details.sockfd, &(details.addr), details.Size);
-    printf("arrivato ack, continuo (sender)\n");
+
     handshake TERM;
     TERM.isFinal = -1;
 

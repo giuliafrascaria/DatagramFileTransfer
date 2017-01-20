@@ -8,6 +8,10 @@
 #include <stdio.h>
 
 //--------------------------------------------------------------------------------------------------------STRUTTURE DATI
+#define WINDOWSIZE 2048
+#define TIMERSIZE 2048
+#define LOSSPROB 100
+#define BASETIMER 200
 
 struct timer
 {
@@ -127,6 +131,7 @@ int openFile(char * fileName);
 //P
 //Q
 //R
+unsigned int randomGen();
 int receiveACK(int mainSocket, struct sockaddr * address, socklen_t *slen);
 datagram rebuildDatagram(int fd, struct pipeMessage pm, int command);
 int readGlobalTimerStop();

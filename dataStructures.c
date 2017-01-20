@@ -11,8 +11,6 @@
 #include "dataStructures.h"
 
 
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 struct selectCell selectiveWnd[WINDOWSIZE];
@@ -48,8 +46,7 @@ pthread_mutex_t timemtx = PTHREAD_MUTEX_INITIALIZER;
 volatile int dataError = 0;
 
 
-
-int offset = 200;
+int offset = BASETIMER;
 
 //------------------------------------------------------------------------------------------------------------CONNECTION
 
@@ -63,9 +60,9 @@ struct sockaddr_in createStruct(unsigned short portN)
     address.sin_family = AF_INET;
     address.sin_port = htons(portN);
     address.sin_addr.s_addr = htonl(INADDR_ANY);
-//    address.sin_addr.s_addr  = inet_addr("79.31.43.146");
-    printf("porta : %d\n", address.sin_port );
-    printf("address : %d\n", address.sin_addr.s_addr );
+    //address.sin_addr.s_addr = inet_addr("95.239.229.223");
+    //printf("porta : %d\n", address.sin_port );
+    //printf("address : %d\n", address.sin_addr.s_addr );
 
     return address;
 }
@@ -142,10 +139,7 @@ void acceptConnection(int mainSocket, handshake * ACK, struct sockaddr * address
 
 void initWindow(int times)
 {
-    if(memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell))==NULL)
-    {
-        perror("error on memset");
-    }
+    memset(selectiveWnd, 0, windowSize * sizeof(struct selectCell));
     int i;
     for(i = 0; i < windowSize; i++)
     {
@@ -469,6 +463,7 @@ void * timerFunction()
             {
 //                if(readGlobalTimerStop()==1)
 //                {
+                printf("gestione ritrasmissioni\n");
                 mtxLock(&(selectiveWnd[currentTimer->seqNum % windowSize].cellMtx));
 
                 if (currentTimer->isValid)
@@ -605,11 +600,24 @@ void sendDatagram(int socketfd, struct sockaddr_in * servAddr, socklen_t servLen
 {
     sentPacket(sndPacket->seqNum, rtx);
 
-    if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
-        perror("datagram send error");
+
+    volatile int diceroll = randomGen();
+
+    if(diceroll >= LOSSPROB)
+    {
+        if (sendto(socketfd, (char *) sndPacket, sizeof(datagram), 0, (struct sockaddr *) servAddr, servLen) == -1) {
+            perror("datagram send error");
+        }
+        printf("rand = %d, pacchetto mandato\n", diceroll);
+
+        startRTTsample(sndPacket->seqNum);
+    }
+    else
+    {
+        printf("pacchetto perso\n");
     }
 
-    startRTTsample(sndPacket->seqNum);
+
 }
 
 void sendACK(int socketfd, handshake *ACK, struct sockaddr_in * servAddr, socklen_t servLen)
@@ -1006,6 +1014,18 @@ int getRTTseq()
     return rttseq;
 }
 
+unsigned int randomGen()
+{
+    int seed1 = (int) time(NULL);
+    int seed2 = getWheelPosition();
+    int seed3 = getRTTseq();
+
+    int seed5 = getSeqNum();
+    int seed6 = getOpID();
+
+    unsigned int randomn = (unsigned int) (seed1 + 2*seed2 + seed3 + seed5 + 2*seed6)%1000;
+    return randomn;
+}
 //-----------------------------------------------------------------------------------------------------------------FINE
 
 
