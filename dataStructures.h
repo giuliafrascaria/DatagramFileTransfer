@@ -10,7 +10,7 @@
 //--------------------------------------------------------------------------------------------------------STRUTTURE DATI
 #define WINDOWSIZE 2048
 #define TIMERSIZE 2048
-#define LOSSPROB 100
+#define LOSSPROB 0
 #define BASETIMER 200
 
 struct timer

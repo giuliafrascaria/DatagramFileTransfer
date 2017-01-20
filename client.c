@@ -12,8 +12,8 @@
 #define NANOSLEEP 10000
 
 
-//#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+#define PULLDIR "/home/giogge/Documenti/clientHome/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -254,14 +254,16 @@ void listenCycle()
             }
             else {
                 //prendo un timestamp
-                clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &opStart);
+                while(clock_gettime(CLOCK_MONOTONIC_COARSE, &opStart) != 0)
+                {}
 
                 //processing request
                 sendSignalTimer();
                 parseInput(s);
                 timeout = 0;
 
-                clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &opEnd);
+                while(clock_gettime(CLOCK_MONOTONIC_COARSE, &opEnd) != 0)
+                {}
 
                 ssize_t len = lseek(fdglob, 0, SEEK_END) + 1;
                 if (!getDataError()) {
@@ -276,7 +278,7 @@ void listenCycle()
                             printf("----------------------------------------------------------------\n");
                             printf("\n\n");
                             printf("%d,%ld,%d\n", (int) len, mseconds, LOSSPROB);
-                            if(fprintf(csv, "%d,%ld,%d\n", (int) len, mseconds, LOSSPROB)<0)
+                            if(fprintf(csv, "%d,%ld,%d,%d,%ld\n", (int) len, mseconds, LOSSPROB, WINDOWSIZE, currentRTT.RTT)<0)
                                 perror("error on fprintf");
                             else
                                 fflush(csv);
