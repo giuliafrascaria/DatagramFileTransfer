@@ -5,11 +5,10 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/sendfile.h>
-//#include <sys/time.h>
 #include "dataStructures.h"
 
 
-#define NANOSLEEP 10000
+//#define NANOSLEEP 10000
 
 
 //#define PULLDIR "/home/giogge/Documenti/clientHome/"
@@ -74,6 +73,7 @@ pthread_cond_t senderCond = PTHREAD_COND_INITIALIZER;
 int main()
 {
 
+    printf("%d\n", nanoSleep);
     printf("connection is starting... \n\n\n");
     clientSendFunction();
     exit(EXIT_SUCCESS);
