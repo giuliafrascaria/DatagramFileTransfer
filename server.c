@@ -11,8 +11,8 @@
 #define NANOSLEEP 10000
 
 
-#define LSDIR "/home/giogge/Documenti/DFThome/"
-//#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/giogge/Documenti/DFThome/"
+#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
