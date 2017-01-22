@@ -8,10 +8,10 @@
 #include <stdio.h>
 
 //--------------------------------------------------------------------------------------------------------STRUTTURE DATI
-#define WINDOWSIZE 2048
-#define TIMERSIZE 2048
-#define LOSSPROB 100
-#define BASETIMER 200
+//#define WINDOWSIZE 2048
+//#define TIMERSIZE 2048
+//#define LOSSPROB 100
+//#define BASETIMER 200
 
 struct timer
 {

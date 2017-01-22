@@ -8,7 +8,7 @@
 #include "server.h"
 
 
-#define NANOSLEEP 10000
+//#define NANOSLEEP 10000
 
 
 //#define LSDIR "/home/giogge/Documenti/DFThome/"
