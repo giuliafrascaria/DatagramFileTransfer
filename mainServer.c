@@ -23,7 +23,7 @@ int main() {
     mainSocket = createSocket();
 
     //settaggio dei valori della struct
-    address = createStruct(4242); //create main socket on well known port
+    address = createStruct(PORT); //create main socket on well known port
 
     //il server deve anche fare un bind della socket a una porta nota
     bindSocket(mainSocket, (struct sockaddr *) &address, slen);

@@ -12,7 +12,7 @@
 
 
 //#define PULLDIR "/home/giogge/Documenti/clientHome/"
-#define PULLDIR "/home/dandi/exp/"
+//#define PULLDIR "/home/dandi/exp/"
 
 
 int timerSize = TIMERSIZE;
@@ -134,7 +134,7 @@ void initProcess()
     //----------------------------------------------------
 
 
-    senderServerAddress = createStruct(4242); //create struct with server port
+    senderServerAddress = createStruct(PORT); //create struct with server port
     socketfd = createSocket();
 
     if (fcntl(socketfd, F_SETFL, O_NONBLOCK) == -1)

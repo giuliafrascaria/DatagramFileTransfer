@@ -12,6 +12,7 @@
 //#define TIMERSIZE 2048
 //#define LOSSPROB 100
 //#define BASETIMER 200
+#define  PORT 4242
 
 struct timer
 {

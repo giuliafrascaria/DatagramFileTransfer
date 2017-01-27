@@ -12,7 +12,7 @@
 
 
 //#define LSDIR "/home/giogge/Documenti/DFThome/"
-#define LSDIR "/home/dandi/Downloads/"
+//#define LSDIR "/home/dandi/Downloads/"
 
 int timerSize = TIMERSIZE;
 int nanoSleep = NANOSLEEP;
@@ -383,7 +383,6 @@ void sendSYNACK(int privateSocket, socklen_t socklen , struct details * cl)
     handshake SYN_ACK;
     srandom((unsigned int)getpid());
     SYN_ACK.sequenceNum = rand() % 4096;
-
 
 
     sendSignalTimer();
