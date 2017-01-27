@@ -1,7 +1,7 @@
 # DFT
 
 "Datagram File Transfer" is a client-server application that implements, in C programming language, a reliable,
-ordered and error checked delivery of datagram over UDP protocol.
+ordered and error checked delivery of datagrams over UDP protocol.
 
 
 ## Prerequisites
